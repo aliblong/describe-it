@@ -1,43 +1,274 @@
 
 # coding: utf-8
 
-# In[64]:
+# In[2]:
 
+
+import os
+import sys
+import regex as re
+import logging
+
+import requests
+from bs4 import BeautifulSoup
 
 import numpy as np
 import nltk as nl
 import pandas as pd
 import sklearn as sk
-import regex as re
+
+from sqlalchemy import create_engine
+from sqlalchemy_utils import database_exists, create_database
+
+from dotenv import load_dotenv, find_dotenv
+#load_dotenv(find_dotenv())
+
+
+# In[ ]:
+
+
+def parse_ad(html): # Parses ad html trees and sorts relevant data into a dictionary
+    ad_info = {}
+
+    #description = html.find('div', {"class": "description"}).text.strip()
+    #description = description.replace(html.find('div', {"class": "details"}).text.strip(), '')
+    #print(description)
+    try:
+        ad_info["Title"] = html.find('a', {"class": "title"}).text.strip()
+    except:
+        logging.error('Unable to parse Title data.')
+
+    try:
+        ad_info["Image"] = str(html.find('img'))
+    except:
+        logging.error('Unable to parse Image data')
+
+    try:
+        ad_info["Url"] = 'http://www.kijiji.ca' + html.get("data-vip-url")
+    except:
+        logging.error('Unable to parse URL data.')
+
+    try:
+        ad_info["Details"] = html.find('div', {"class": "details"}).text.strip()
+    except:
+        logging.error('Unable to parse Details data.')
+
+    try:
+        description = html.find('div', {"class": "description"}).text.strip()
+        description = description.replace(ad_info["Details"], '')
+        ad_info["Description"] = description
+    except:
+        logging.error('Unable to parse Description data.')
+
+    try:
+        ad_info["Date"] = html.find('span', {"class": "date-posted"}).text.strip()
+    except:
+        logging.error('Unable to parse Date data.')
+
+    try:
+        location = html.find('div', {"class": "location"}).text.strip()
+        location = location.replace(ad_info["Date"], '')
+        ad_info["Location"] = location
+    except:
+        logging.error('Unable to parse Location data.')
+
+    try:
+        ad_info["Price"] = html.find('div', {"class": "price"}).text.strip()
+    except:
+        logging.error('Unable to parse Price data.')
+
+    return ad_info
+
+
+def WriteAds(ad_dict, con):  # Writes ads from given dictionary to given file
+    
+
+
+def ReadAds(outfile):  # Reads given file and creates a dict of ads in file
+    import ast
+    ad_dict = {}
+    if os.path.exists(outfile):
+        with open(outfile, 'r') as fh:
+            ad_dict = json.loads(fh.read())
+
+    return ad_dict
+
+def scrape(url, old_ad_dict, exclude_list, filename, send_email):  # Pulls page data from a given kijiji url and finds all ads on each page
+    # Initialize variables for loop
+    email_title = None
+    ad_dict = {}
+    third_party_ad_ids = []
+
+    while url:
+
+        try:
+            page = requests.get(url) # Get the html data from the URL
+        except:
+            print("[Error] Unable to load " + url)
+            sys.exit(1)
+
+        soup = BeautifulSoup(page.content, "html.parser")
+
+        if not email_title: # If the email title doesnt exist pull it form the html data
+            email_title = soup.find('div', {'class': 'message'}).find('strong').text.strip('"')
+            email_title = to_upper(email_title)
+
+        kijiji_ads = soup.find_all("div", {"class": "regular-ad"})  # Finds all ad trees in page html.
+
+        third_party_ads = soup.find_all("div", {"class": "third-party"}) # Find all third-party ads to skip them
+        for ad in third_party_ads:
+            third_party_ad_ids.append(ad['data-ad-id'])
+
+
+        exclude_list = to_lower(exclude_list) # Make all words in the exclude list lower-case
+        #checklist = ['miata']
+        for ad in kijiji_ads:  # Creates a dictionary of all ads with ad id being the keys.
+            title = ad.find('a', {"class": "title"}).text.strip() # Get the ad title
+            ad_id = ad['data-ad-id'] # Get the ad id
+            if not [False for match in exclude_list if match in title.lower()]: # If any of the title words match the exclude list then skip
+                #if [True for match in checklist if match in title.lower()]:
+                if (ad_id not in old_ad_dict and ad_id not in third_party_ad_ids): # Skip third-party ads and ads already found
+                    logging.info('New ad found! Ad id: ' + ad_id)
+                    ad_dict[ad_id] = parse_ad(ad) # Parse data from ad
+        url = soup.find('a', {'title' : 'Next'})
+        if url:
+            url = 'https://www.kijiji.ca' + url['href']
+
+    if ad_dict != {}:  # If dict not emtpy, write ads to text file and send email.
+        WriteAds(ad_dict, filename) # Save ads to file
+        if send_email:
+            MailAd(ad_dict, email_title) # Send out email with new ads
+
+def to_lower(input_list): # Rturns a given list of words to lower-case words
+    output_list = list()
+    for word in input_list:
+        output_list.append(word.lower())
+    return output_list
+
+def to_upper(title): # Makes the first letter of every word upper-case
+    new_title = list()
+    title = title.split()
+    for word in title:
+        new_word = ''
+        new_word += word[0].upper()
+        if len(word) > 1:
+            new_word += word[1:]
+        new_title.append(new_word)
+    return ' '.join(new_title)
+
+def main():
+    parser = argparse.ArgumentParser(description='Scrape ads from a Kijiji URL')
+    outfile_default = 'scraped_ads.json'
+    parser.add_argument(
+        '--url', '-u',
+        dest='url',
+        type=str,
+        required=True,
+        help='URL to scrape',
+    )
+    parser.add_argument(
+        '--outfile', '-f',
+        dest='outfile',
+        type=str,
+        default=outfile_default,
+        help='filename to store ads in (default name is {outfile_default})'
+    ),
+    parser.add_argument(
+        '--exclude', '-e',
+        dest='exclude_list',
+        nargs='*',
+        type=str,
+        default=[],
+        help='ads containing one of the strings in this list are excluded'
+    )
+    parser.add_argument(
+        '-send_email', '-s',
+        dest='send_email',
+        type=bool,
+        default=False,
+        help='Email the output to a hardcoded address in the script'
+    )
+    parser.add_argument(
+        '-v',
+        '--verbose',
+        help='',
+        dest='verbose',
+        action='store_true'
+    )
+            #filename = args.pop(args.index('-f') + 1)
+            #filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+            #args.remove('-f')
+    args = parser.parse_args()
+
+    old_ad_dict = ReadAds(args.outfile)
+    level = 'INFO' if args.verbose else 'ERROR'
+    logging.basicConfig(level=level)
+    logging.info('Ad database succesfully loaded.')
+    scrape(args.url, old_ad_dict, args.exclude_list, args.outfile, args.send_email)
 
 
 # Reads in some listings
 
-# In[25]:
+# In[4]:
 
 
-listings_file_csv = '../Kijiji-Scraper/plasma_tvs.csv'
-df = pd.read_csv(listings_file_csv)
-#listings_file_json = 'Kijiji-Scraper/bikes.json'
-#df = pd.read_json(listings_file_json, orient='index')
-# Kijiji uids look like unix timestamps, and afaict there's no way do stop
-# pandas interpreting them as such while using orient='index'
-df.index = df.index.astype(np.int64) // 10**9
-descs = [row['Description'] for _, row in df.iterrows()]
+def connect_db():
+    db_url = os.getenv('DB_URL')
+    engine = create_engine( 'postgresql://{}', db_url)
+    if not database_exists(engine.url):
+        create_database(engine.url)
+    return engine
 
 
-# In[26]:
+# In[10]:
+
+
+def listings(subject, con):
+    # Idk if this is injectable
+    sql_query = "SELECT Description FROM {} WHERE delivery_method='Cesarean';", subject
+    birth_data_from_sql = pd.read_sql_query(sql_query,con)
+    listings_file_csv = '../Kijiji-Scraper/plasma_tvs.csv'
+    #df = pd.read_csv(listings_file_csv)
+    listings_file_json = '../Kijiji-Scraper/bikes.json'
+    df = pd.read_json(listings_file_json, orient='index')
+    # Kijiji uids look like unix timestamps, and afaict there's no way do stop
+    # pandas interpreting them as such while using orient='index'
+    df.index = df.index.astype(np.int64) // 10**9
+    descs = [row['Description'] for _, row in df.iterrows()]
+    print(descs)
+
+listings('test')
+
+
+# Initialize spacy with the largest English CNN
+# 
+# https://spacy.io/models/en#en_core_web_lg
+
+# In[10]:
 
 
 import spacy
 nlp_full = spacy.load('en_core_web_lg')
-nlp_tokenizer = spacy.load('en_core_web_lg', disable=['tagger'])
+#nlp_tokenizer = spacy.load('en_core_web_lg', disable=['tagger'])
 
 
-# In[27]:
+# In[88]:
+
+
+listings_file_json = '../Kijiji-Scraper/plasma_tvs.json'
+my_subject = 'tv'
+df = pd.read_json(listings_file_json, orient='index')
+# Kijiji uids look like unix timestamps, and afaict there's no way do stop
+# pandas interpreting them as such while using orient='index'
+#df.index = df.index.astype(np.int64) // 10**9
+descs = [row['Description'] for _, row in df.iterrows()]
+
+
+# In[89]:
 
 
 def fix_capitalization(text):
+    '''This function lowercases sentences that are in all- or nearly-all-caps'''
     sents = nl.tokenize.sent_tokenize(text)
     # First, figure out if a sentence is mostly caps, vs lowers and digits
     # Lowercasing mostly-caps sentences improves parsing, and using digits
@@ -57,41 +288,35 @@ def fix_capitalization(text):
             fixed_sent = sent.lower()
             sents[i] = fixed_sent
     return ' '.join(sents)
-    
 
 
-# In[28]:
+# Lowercase all-caps sentences then run the NLP pipeline
+
+# In[90]:
 
 
 capcleaned_descs = [fix_capitalization(desc) for desc in descs]
 docs = [nlp_full(desc) for desc in capcleaned_descs]
-capcleaned_descs
+#capcleaned_descs
 
 
-# In[29]:
+# In[91]:
 
 
 tagged_words_spacy = []
 for doc in docs:
     tagged_words_spacy.append([(token.text, token.tag_) for token in doc])
     
-import itertools
-#flattened_tagged_words = list(itertools.chain.from_iterable(tagged_words))
-my_subject = 'bike'
 my_subject_lower = my_subject.lower()
-#print(tagged_words_spacy)
-#tagged_words
-#brand_model_candidates = [word for sent in tagged_words for (word, tag) in sent if tag in ['NNP', 'NN'] and not word.lower() == subject_lower]
-#brand_model_candidates
 def is_brand_model_candidate(word, tag, subject_lower):
     return tag in ['NNP'] and word.lower() != subject_lower
 brand_model_cands = []
 for sent in tagged_words_spacy:
     brand_model_cands.append([word for (word, tag) in sent if is_brand_model_candidate(word, tag, my_subject_lower)])
-brand_model_cands
+#brand_model_cands
 
 
-# In[110]:
+# In[92]:
 
 
 #print(brand_model_words)
@@ -118,7 +343,7 @@ def generate_multiplicity_dict(words):
     return multiplicities 
 
 
-# In[31]:
+# In[93]:
 
 
 listing_noun_phrases = []
@@ -133,10 +358,10 @@ for doc in docs:
             important_descriptors = [word for word in np if not word.tag_ in stop_tags and not word.text == np.root.text]
             noun_phrases.append((important_descriptors, np.root.text))
     listing_noun_phrases.append(noun_phrases)
-listing_noun_phrases
+#listing_noun_phrases
 
 
-# In[32]:
+# In[94]:
 
 
 listing_noun_phrase_subjects = [np for listing in listing_noun_phrases for (descriptors, np) in listing]
@@ -144,7 +369,7 @@ subject_preferred_spellings = generate_preferred_spelling_dict(listing_noun_phra
 popular_descriptors = list(subject_preferred_spellings.items())
 
 
-# In[33]:
+# In[95]:
 
 
 import hunspell
@@ -162,14 +387,14 @@ def find_likely_brand_names(brands):
     
 
 
-# In[34]:
+# In[96]:
 
 
 def cands_directly_describing_subject(cands, subj_descriptors):
     return [cand for cand in cands if cand.lower() in subj_descriptors]
 
 
-# In[35]:
+# In[97]:
 
 
 # A dictionary of preferred spellings also contains word occurrence multiplicities
@@ -177,7 +402,7 @@ def highest_multiplicity_cand(cands, preferred_spellings):
     return max(cands, key=lambda cand: preferred_spellings[cand.lower()][1])
 
 
-# In[36]:
+# In[98]:
 
 
 brand_names = []
@@ -210,25 +435,25 @@ for doc, brand_cands, nps in zip(
             top_cand = highest_multiplicity_cand(brand_cands, preferred_brand_spellings)
     
     brand_names.append(preferred_brand_spellings[top_cand.lower()][0])
-brand_names
+#brand_names
 
 
-# In[37]:
+# In[99]:
 
 
 popular_descriptors.sort(key=lambda desc: desc[1][1], reverse=True)
-popular_descriptors
+#popular_descriptors
 
 
-# In[38]:
+# In[100]:
 
 
 popular_brands = [preferred_spelling for (key, preferred_spelling) in preferred_brand_spellings.items()]
 popular_brands.sort(key=lambda brand: brand[1], reverse=True)
-popular_brands
+#popular_brands
 
 
-# In[120]:
+# In[101]:
 
 
 most_popular_descriptors = [descriptor for (descriptor, _) in popular_descriptors[:10]]
@@ -279,110 +504,108 @@ for subject, listings in indirect_descriptor_phrases.items():
     preferred_descriptions.sort(key=lambda desc: desc[1], reverse=True)
     top_indirect_descriptors[subject] = preferred_descriptions
 
-top_indirect_descriptors   
+for feature, descriptors in top_indirect_descriptors.items():
+    print(f'{feature}:')
+    for descriptor, mult in descriptors[:8]:
+        print(f'\t{descriptor} ({mult})')
 
 
-# In[61]:
+# In[102]:
 
 
+for brand, mult in popular_brands[:15]:
+    print(f'{brand} ({mult})')
 
 
-
-# In[40]:
-
-
-descs
+# In[103]:
 
 
-# In[41]:
+# for doc in docs[:3]:
+#     spacy.displacy.render(doc, style='dep', jupyter=True)
+#     print(doc)
+#     print(doc.ents)
 
 
-import hunspell
-hobj = hunspell.HunSpell('/usr/share/hunspell/en_US.dic', '/usr/share/hunspell/en_US.aff')
-brand_model_cands
+# In[104]:
 
 
-# In[42]:
+#descs
 
 
-for doc in docs:
-    spacy.displacy.render(doc, style='dep', jupyter=True)
-    print(doc)
-    print(doc.ents)
+# In[105]:
 
 
-# In[121]:
+# import hunspell
+# hobj = hunspell.HunSpell('/usr/share/hunspell/en_US.dic', '/usr/share/hunspell/en_US.aff')
+# brand_model_cands
 
 
-testdoc = nlp_full('42x42 cm black cat')
-spacy.displacy.render(testdoc, style='dep', jupyter = True)
+# In[106]:
 
 
-# In[ ]:
+#testdoc = nlp_full('42x42 cm black cat')
+#spacy.displacy.render(testdoc, style='dep', jupyter = True)
 
 
-vectorizer = sk.feature_extraction.text.CountVectorizer()
+# In[107]:
 
 
-# In[ ]:
+# vectorizer = sk.feature_extraction.text.CountVectorizer()
 
 
-word_bag = vectorizer.fit_transform(important_words).toarray()
-bag_words = vectorizer.get_feature_names()
-# We don't care if a word appears multiple times in the same listing
-for (index, single_listing_word_multiplicity) in np.ndenumerate(word_bag):
-    if single_listing_word_multiplicity > 1: word_bag[index] = 1
-aggregate_multiplicities = word_bag.sum(axis=0)
-word_multiplicity = list(zip(bag_words, aggregate_multiplicities.tolist()))
-
-#word_multiplicity = np.column_stack((bag_words, aggregate_multiplicities))
+# In[108]:
 
 
-# In[ ]:
+# word_bag = vectorizer.fit_transform(important_words).toarray()
+# bag_words = vectorizer.get_feature_names()
+# # We don't care if a word appears multiple times in the same listing
+# for (index, single_listing_word_multiplicity) in np.ndenumerate(word_bag):
+#     if single_listing_word_multiplicity > 1: word_bag[index] = 1
+# aggregate_multiplicities = word_bag.sum(axis=0)
+# word_multiplicity = list(zip(bag_words, aggregate_multiplicities.tolist()))
+
+# #word_multiplicity = np.column_stack((bag_words, aggregate_multiplicities))
 
 
-# https://stackoverflow.com/a/2828121
-#def sort_words_by_multiplicity(words):
-#    return words[words[:,1].argsort()]
-
-#sorted_words = sort_words_by_multiplicity(word_multiplicity)
-#sorted_words = sorted_words[::-1]
-#sorted_words[:30]
-
-word_multiplicity.sort(key=lambda word_multiplicity: word_multiplicity[1])
-word_multiplicity[::-1]
+# In[109]:
 
 
-# In[125]:
+# # https://stackoverflow.com/a/2828121
+# #def sort_words_by_multiplicity(words):
+# #    return words[words[:,1].argsort()]
+
+# #sorted_words = sort_words_by_multiplicity(word_multiplicity)
+# #sorted_words = sorted_words[::-1]
+# #sorted_words[:30]
+
+# word_multiplicity.sort(key=lambda word_multiplicity: word_multiplicity[1])
+# word_multiplicity[::-1]
 
 
+# In[110]:
 
 
-
-# In[ ]:
-
-
-def tag_words(text):
-      tokens = nl.word_tokenize(text)
-      return nl.pos_tag(tokens)
+# def tag_words(text):
+#       tokens = nl.word_tokenize(text)
+#       return nl.pos_tag(tokens)
 
 
-# In[ ]:
+# In[111]:
 
 
-def ner_words(text):
-      tokens = nl.word_tokenize(text)
-      return nl.chunk.ne_chunk(tokens)
+# def ner_words(text):
+#       tokens = nl.word_tokenize(text)
+#       return nl.chunk.ne_chunk(tokens)
 
 
-# In[ ]:
+# In[112]:
 
 
-chunked_words = [nl.chunk.ne_chunk(desc) for desc in tagged_words]
-chunked_words
+# chunked_words = [nl.chunk.ne_chunk(desc) for desc in tagged_words]
+# chunked_words
 
 
-# In[ ]:
+# In[113]:
 
 
 # #print(brand_model_cands)
@@ -398,7 +621,7 @@ chunked_words
 # spellings
 
 
-# In[ ]:
+# In[114]:
 
 
 #preferred_spellings = {}
