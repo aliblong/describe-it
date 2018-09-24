@@ -11773,7 +11773,7 @@ div#notebook {
 
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[1]:</div>
+<div class="prompt input_prompt">In&nbsp;[62]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
@@ -11781,6 +11781,9 @@ div#notebook {
 <span class="kn">import</span> <span class="nn">regex</span> <span class="k">as</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">datetime</span>
+
+<span class="n">level</span> <span class="o">=</span> <span class="s1">&#39;INFO&#39;</span> <span class="c1">#&#39;ERROR&#39;</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">)</span>
 
 <span class="kn">import</span> <span class="nn">requests</span>
 <span class="kn">from</span> <span class="nn">bs4</span> <span class="k">import</span> <span class="n">BeautifulSoup</span>
@@ -11791,7 +11794,7 @@ div#notebook {
 <span class="kn">import</span> <span class="nn">sklearn</span> <span class="k">as</span> <span class="nn">sk</span>
 
 <span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="k">import</span> <span class="n">create_engine</span><span class="p">,</span> <span class="n">Column</span><span class="p">,</span> <span class="n">Integer</span><span class="p">,</span> <span class="n">BigInteger</span><span class="p">,</span> <span class="n">String</span><span class="p">,</span> <span class="n">DateTime</span>
-<span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="k">import</span> <span class="n">sessionmaker</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="k">import</span> <span class="n">sessionmaker</span><span class="p">,</span> <span class="n">aliased</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy_utils</span> <span class="k">import</span> <span class="n">database_exists</span><span class="p">,</span> <span class="n">create_database</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.ext.declarative</span> <span class="k">import</span> <span class="n">declarative_base</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.schema</span> <span class="k">import</span> <span class="n">FetchedValue</span>
@@ -11811,7 +11814,7 @@ div#notebook {
 
 <div class="output_area">
 
-<div class="prompt output_prompt">Out[1]:</div>
+<div class="prompt output_prompt">Out[62]:</div>
 
 
 
@@ -11828,16 +11831,17 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[2]:</div>
+<div class="prompt input_prompt">In&nbsp;[1]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># Derived from https://github.com/CRutkowski/Kijiji-Scraper</span>
-<span class="k">def</span> <span class="nf">parse_ad_summary</span><span class="p">(</span><span class="n">html</span><span class="p">):</span> <span class="c1"># Parses ad html trees and sorts relevant data into a dictionary</span>
+<span class="k">def</span> <span class="nf">parse_ad_summary</span><span class="p">(</span><span class="n">html</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Parses several fields of a listing summary (except the description, which is truncated),</span>
+<span class="sd">    then returns a dict of several these fields</span>
+<span class="sd">    &#39;&#39;&#39;</span>
     <span class="n">ad_info</span> <span class="o">=</span> <span class="p">{}</span>
-
-    <span class="c1">#description = html.find(&#39;div&#39;, {&#39;class&#39;: &#39;description&#39;}).text.strip()</span>
-    <span class="c1">#description = description.replace(html.find(&#39;div&#39;, {&#39;class&#39;: &#39;details&#39;}).text.strip(), &#39;&#39;)</span>
-    <span class="c1">#print(description)</span>
+    
     <span class="k">try</span><span class="p">:</span>
         <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;title&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
     <span class="k">except</span><span class="p">:</span>
@@ -11863,6 +11867,7 @@ div#notebook {
     <span class="k">except</span><span class="p">:</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Date data.&#39;</span><span class="p">)</span>
 
+    <span class="c1"># The location field is affixed with the date for some reason</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">location</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;location&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
         <span class="n">location</span> <span class="o">=</span> <span class="n">location</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">],</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
@@ -11870,6 +11875,8 @@ div#notebook {
     <span class="k">except</span><span class="p">:</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Location data.&#39;</span><span class="p">)</span>
 
+    <span class="c1"># In addition to normal prices, there can be &#39;Free&#39; ($0), &#39;Please Contact&#39; ($-1),</span>
+    <span class="c1"># some other value ($-2), or empty ($-3)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">price</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;price&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">price</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;$&#39;</span><span class="p">:</span>
@@ -11883,12 +11890,14 @@ div#notebook {
         <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;price&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">price</span>
     <span class="k">except</span><span class="p">:</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Price data.&#39;</span><span class="p">)</span>
+        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;price&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;-3.00&#39;</span>
 
     <span class="k">return</span> <span class="n">ad_info</span>
 
 <span class="k">def</span> <span class="nf">parse_ad_page</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;Parses the description from an ad page&#39;&#39;&#39;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">page</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span> <span class="c1"># Get the html data from the URL</span>
+        <span class="n">page</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
     <span class="k">except</span><span class="p">:</span>
         <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;[Error] Unable to load &#39;</span> <span class="o">+</span> <span class="n">url</span><span class="p">)</span>
         <span class="k">return</span> <span class="s1">&#39;&#39;</span>
@@ -11900,90 +11909,63 @@ div#notebook {
     <span class="k">except</span><span class="p">:</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse ad description.&#39;</span><span class="p">)</span>
 
-    
-    <span class="c1"># There&#39;s a meme going around that ORMs are a pain, so for now I&#39;ll use raw SQL</span>
-<span class="c1">#     sql = [</span>
-<span class="c1">#         f&#39;insert into subjects ({subject})&#39;,</span>
-<span class="c1">#     ]</span>
-<span class="c1">#     _, ad = list(ads.items())[0]</span>
-<span class="c1">#     print(ad)</span>
-<span class="c1">#     print(&#39;, &#39;.join([</span>
-<span class="c1">#         ad[&#39;title&#39;],</span>
-<span class="c1">#         ad[&#39;img&#39;],</span>
-<span class="c1">#         ad[&#39;url&#39;],</span>
-<span class="c1">#         ad[&#39;details&#39;],</span>
-<span class="c1">#         ad[&#39;description&#39;],</span>
-<span class="c1">#         ad[&#39;date&#39;],</span>
-<span class="c1">#         ad[&#39;location&#39;],</span>
-<span class="c1">#         ad[&#39;price&#39;]</span>
-<span class="c1">#     ]))</span>
-<span class="c1">#     vals_to_insert = &#39;, &#39;.join([&#39;(%s)&#39; % &#39;, &#39;.join([</span>
-<span class="c1">#         ad[&#39;title&#39;],</span>
-<span class="c1">#         ad[&#39;img&#39;],</span>
-<span class="c1">#         ad[&#39;url&#39;],</span>
-<span class="c1">#         ad[&#39;details&#39;],</span>
-<span class="c1">#         ad[&#39;description&#39;],</span>
-<span class="c1">#         ad[&#39;date&#39;],</span>
-<span class="c1">#         ad[&#39;location&#39;],</span>
-<span class="c1">#         ad[&#39;price&#39;]</span>
-<span class="c1">#     ]) for ad in ads])</span>
-<span class="c1">#     print(vals_to_insert)</span>
-<span class="c1">#     sql += f&#39;insert into listings values {vals_to_insert}&#39;</span>
-
-<span class="k">def</span> <span class="nf">scrape</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">existing_ad_ids</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>  <span class="c1"># Pulls page data from a given kijiji url and finds all ads on each page</span>
+<span class="k">def</span> <span class="nf">scrape</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">existing_ad_ids</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">limit</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">url</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Args are a search string for some subject, a list of existing ad IDs to skip,</span>
+<span class="sd">    a limit to the number of results to return, and a url from which to start</span>
+<span class="sd">    (in case, for example, a previous scrape was halted and is now being resumed).</span>
+<span class="sd">    Returns (ads, all_ads_scraped); all_ads_scraped is whether or not an imposed limit was reached</span>
+<span class="sd">    &#39;&#39;&#39;</span>
     <span class="c1"># Initialize variables for loop</span>
     <span class="n">ad_dict</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="c1"># Shallow copy for now</span>
     <span class="n">ad_ids_to_skip</span> <span class="o">=</span> <span class="n">existing_ad_ids</span> <span class="k">if</span> <span class="n">existing_ad_ids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">set</span><span class="p">()</span>
 
-    <span class="n">url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;https://www.kijiji.ca/b-city-of-toronto/</span><span class="si">{subject}</span><span class="s1">/k0l1700273?ll=43.650843,-79.377573&amp;dc=true&#39;</span>
+    <span class="k">if</span> <span class="n">url</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span> <span class="n">url</span> <span class="o">=</span> \
+        <span class="n">f</span><span class="s1">&#39;https://www.kijiji.ca/b-city-of-toronto/</span><span class="si">{subject}</span><span class="s1">/k0l1700273?ll=43.650843,-79.377573&amp;dc=true&#39;</span>
 
+    <span class="n">ads_parsed</span> <span class="o">=</span> <span class="mi">0</span>
+    
     <span class="k">while</span> <span class="n">url</span><span class="p">:</span>
 
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">page</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span> <span class="c1"># Get the html data from the URL</span>
+            <span class="n">page</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
         <span class="k">except</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;[Error] Unable to load &#39;</span> <span class="o">+</span> <span class="n">url</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;[Error] Unable to load </span><span class="si">{url}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="k">return</span>
 
         <span class="n">soup</span> <span class="o">=</span> <span class="n">BeautifulSoup</span><span class="p">(</span><span class="n">page</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="s1">&#39;html.parser&#39;</span><span class="p">)</span>
 
-        <span class="n">kijiji_ads</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;regular-ad&#39;</span><span class="p">})</span>  <span class="c1"># Finds all ad trees in page html.</span>
-
-        <span class="n">third_party_ads</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;third-party&#39;</span><span class="p">})</span> <span class="c1"># Find all third-party ads to skip them</span>
+        <span class="n">ads</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;regular-ad&#39;</span><span class="p">})</span>
+        
+        <span class="c1"># Skip third-party ads; these third parties are typically small retailers</span>
+        <span class="n">third_party_ads</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;third-party&#39;</span><span class="p">})</span>
         <span class="k">for</span> <span class="n">ad</span> <span class="ow">in</span> <span class="n">third_party_ads</span><span class="p">:</span>
-            <span class="n">ad_ids_to_skip</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">ad</span><span class="p">[</span><span class="s1">&#39;data-ad-id&#39;</span><span class="p">])</span>
+            <span class="n">ad_ids_to_skip</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ad</span><span class="p">[</span><span class="s1">&#39;data-ad-id&#39;</span><span class="p">]))</span>
 
+        <span class="c1"># Parse ads until the limit is reached</span>
         <span class="k">for</span> <span class="n">ad</span> <span class="ow">in</span> <span class="n">kijiji_ads</span><span class="p">:</span>
-            <span class="n">title</span> <span class="o">=</span> <span class="n">ad</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;title&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="c1"># Get the ad title</span>
-            <span class="n">ad_id</span> <span class="o">=</span> <span class="n">ad</span><span class="p">[</span><span class="s1">&#39;data-ad-id&#39;</span><span class="p">]</span> <span class="c1"># Get the ad id</span>
-            <span class="c1">#if not [False for match in exclude_list if match in title.lower()]: # If any of the title words match the exclude list then skip</span>
-            <span class="c1">#if [True for match in checklist if match in title.lower()]:</span>
-            <span class="k">if</span> <span class="n">ad_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ad_ids_to_skip</span><span class="p">:</span> <span class="c1"># Skip third-party ads and ads already found</span>
-                <span class="c1">#logging.info(f&#39;New ad found! Ad id: {ad_id}&#39;)</span>
-                <span class="n">ad_info</span> <span class="o">=</span> <span class="n">parse_ad_summary</span><span class="p">(</span><span class="n">ad</span><span class="p">)</span> <span class="c1"># Parse data from ad</span>
+            <span class="n">title</span> <span class="o">=</span> <span class="n">ad</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;title&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">ad_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ad</span><span class="p">[</span><span class="s1">&#39;data-ad-id&#39;</span><span class="p">])</span>
+            
+            <span class="k">if</span> <span class="n">ad_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ad_ids_to_skip</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;New ad found! Ad id: </span><span class="si">{ad_id}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">ad_info</span> <span class="o">=</span> <span class="n">parse_ad_summary</span><span class="p">(</span><span class="n">ad</span><span class="p">)</span>
                 <span class="n">ad_url</span> <span class="o">=</span> <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span>
                 <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">parse_ad_page</span><span class="p">(</span><span class="n">ad_url</span><span class="p">)</span>
                 <span class="n">ad_dict</span><span class="p">[</span><span class="n">ad_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">ad_info</span>
+                <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">ads_parsed</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">if</span> <span class="n">ads_parsed</span> <span class="o">&gt;=</span> <span class="n">limit</span><span class="p">:</span> <span class="k">return</span> <span class="p">(</span><span class="n">ad_dict</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Skip ad&#39;</span><span class="p">)</span>
+                
         <span class="n">url</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span> <span class="p">:</span> <span class="s1">&#39;Next&#39;</span><span class="p">})</span>
         <span class="k">if</span> <span class="n">url</span><span class="p">:</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;https://www.kijiji.ca&#39;</span> <span class="o">+</span> <span class="n">url</span><span class="p">[</span><span class="s1">&#39;href&#39;</span><span class="p">]</span>
+            <span class="n">url_path</span> <span class="o">=</span> <span class="n">url</span><span class="p">[</span><span class="s1">&#39;href&#39;</span><span class="p">]</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;https://www.kijiji.ca</span><span class="si">{url_path}</span><span class="s1">&#39;</span>
 
-    <span class="k">return</span> <span class="n">ad_dict</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[3]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1">#hummel_ads = scrape(&#39;hummel&#39;)</span>
-<span class="n">hummel_ads</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;1202550115&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel Style Japanese Girl Chicken&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Hummel Style Japanese Girl Chicken&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/ySEAAOSwTA9X5tuP/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-style-japanese-girl-chicken/1202550115&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt; 23 hours ago&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;-1.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel Style Japanese 5 x 4 inches no chips cracks or fleas&#39;</span><span class="p">},</span> <span class="s1">&#39;1358609245&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel &quot;Trumpet Boy&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=</span><span class="se">\&#39;</span><span class="s1">Hummel &quot;Trumpet Boy&quot;</span><span class="se">\&#39;</span><span class="s1"> src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/kJIAAOSw1xVbDIcB/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-trumpet-boy/1358609245&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;20/09/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;25.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Early Goebel Hummel - Germany</span><span class="se">\n</span><span class="s1">&quot;Trumpet Boy&quot; - #97</span><span class="se">\n</span><span class="s1">Stands 4 1/2&quot; high&#39;</span><span class="p">},</span> <span class="s1">&#39;1358607961&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel &quot;Boy with Basket&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=</span><span class="se">\&#39;</span><span class="s1">Hummel &quot;Boy with Basket&quot;</span><span class="se">\&#39;</span><span class="s1"> src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/yloAAOSw8SpbDIXj/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-boy-with-basket/1358607961&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;20/09/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;25.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Early Goebel Hummel - Germany</span><span class="se">\n</span><span class="s1">&quot;Village Boy&quot; #51 3/0</span><span class="se">\n</span><span class="s1">Stands 4&quot; high&#39;</span><span class="p">},</span> <span class="s1">&#39;1260421734&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;hummel like figurines&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;hummel like figurines&quot; src=&quot;https://i.ebayimg.com/00/s/NjQwWDQ4MA==/z/PNgAAOSw7GRZB~Te/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-like-figurines/1260421734&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;18/09/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;35.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel-Like Porcelain figurines , set of 6, mint condition&#39;</span><span class="p">},</span> <span class="s1">&#39;1259656455&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;vintage Hummel like porcelain&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;vintage Hummel like porcelain&quot; src=&quot;https://i.ebayimg.com/00/s/NjQwWDQ4MA==/z/8HcAAOSwlndZBNhB/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-hummel-like-porcelain/1259656455&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;14/09/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;25.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;vintage Hummel like porcelain figurine, 5&quot; high, mint condition&#39;</span><span class="p">},</span> <span class="s1">&#39;1340613666&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummels - &quot;Little Gardner&quot;; &quot;School Girl&quot;; or &quot;For Mother&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=</span><span class="se">\&#39;</span><span class="s1">Hummels - &quot;Little Gardner&quot;; &quot;School Girl&quot;; or &quot;For Mother&quot;</span><span class="se">\&#39;</span><span class="s1"> src=&quot;https://i.ebayimg.com/00/s/NTMzWDgwMA==/z/D~IAAOSwwz5arsuK/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummels-little-gardner-school-girl-or-for-mother/1340613666&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;09/09/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;50.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Beautiful figurines. No chips or scratches. Complete with name tags attached. Excellent condition. Looking for $50.00 each, will accept reasonable offer&#39;</span><span class="p">},</span> <span class="s1">&#39;1355433085&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel &quot; Apple Tree Boy &quot; Figurine&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=</span><span class="se">\&#39;</span><span class="s1">Hummel &quot; Apple Tree Boy &quot; Figurine</span><span class="se">\&#39;</span><span class="s1"> src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/FFMAAOSwHf5a~GWV/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-apple-tree-boy-figurine/1355433085&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;04/09/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;50.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;For sale is a Hummel Figurine titled &quot; Apple Tree Boy &quot;. The base has a small chip that is barely noticeable,..the rest of this figurine is in perfect condition. It measures 6&quot; tall. Older trade mark on bottom. Will ship if needed. Please visit my other items I have up for sale.&#39;</span><span class="p">},</span> <span class="s1">&#39;419236774&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Vintage Hummel &quot;Happy Traveler&quot; 109/0&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=</span><span class="se">\&#39;</span><span class="s1">Vintage Hummel &quot;Happy Traveler&quot; 109/0</span><span class="se">\&#39;</span><span class="s1"> src=&quot;https://i.ebayimg.com/00/s/MTAwMFg3NTA=/$(KGrHqJ,!kwFBVKMfvwGBQbHRQrfH!~~48_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-hummel-happy-traveler-109-0/419236774&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;01/09/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;150.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Pristine condition. TMK 3 (1960-1972), Sty-Bee. Retired in 1982. Price negotiable. After 5:00 p.m. and on weekends, call 416-825-3561.&#39;</span><span class="p">},</span> <span class="s1">&#39;1380413234&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;vintage Hummel-like figurines&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;vintage Hummel-like figurines&quot; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/xt4AAOSwfbpbiFAi/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-hummel-like-figurines/1380413234&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;30/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;30.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Vintage Hummel-like figurines</span><span class="se">\n</span><span class="s1">Made in Japan - C7654</span><span class="se">\n</span><span class="s1">Boy playing violin</span><span class="se">\n</span><span class="s1">Girl playing drum</span><span class="se">\n</span><span class="s1">excellent condition&#39;</span><span class="p">},</span> <span class="s1">&#39;1224890286&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel Plates, 3&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Hummel Plates, 3&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/PdQAAOSwa~BYVHVV/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-plates-3/1224890286&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;26/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;60.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Price is for all 3. Can be purchased individually as well&#39;</span><span class="p">},</span> <span class="s1">&#39;1224722568&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Berta Hummel 1977 Limited Edition Christmas Plate&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Berta Hummel 1977 Limited Edition Christmas Plate&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/n9AAAOSwa~BYU4bb/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/berta-hummel-1977-limited-edition-christmas-plate/1224722568&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;26/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;140.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Excellent condition, with original box and packaging, limited edition.&#39;</span><span class="p">},</span> <span class="s1">&#39;1224660959&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel 1977 Plate - Apple Tree Boy&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Hummel 1977 Plate - Apple Tree Boy&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/T68AAOSwcUBYUyQz/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-1977-plate-apple-tree-boy/1224660959&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;26/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;150.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;No longer being made, vintage. In excellent condition. With original box and packaging.&#39;</span><span class="p">},</span> <span class="s1">&#39;1379273218&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel Umbrella Boy and Girl porcelain dolls with soft body&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Hummel Umbrella Boy and Girl porcelain dolls with soft body &quot; src=&quot;https://i.ebayimg.com/00/s/MTIwMFgxNjAw/z/4hQAAOSwK6NbgfVr/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-umbrella-boy-and-girl-porcelain-dolls-with-soft-body/1379273218&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;25/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;100.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel Umbrella Boy and Girl porcelain dolls with soft body. Great condition dolls have been kept wrapped in storage. Have documents for boy doll but not girl.</span><span class="se">\n</span><span class="s1">Price is negotiable&#39;</span><span class="p">},</span> <span class="s1">&#39;1314353570&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Vintage Berta Hummel Christmas Collector Plates - Mint!!&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Vintage Berta Hummel Christmas Collector Plates - Mint!!&quot; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/W60AAOSwFyhaEOEc/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-berta-hummel-christmas-collector-plates-mint/1314353570&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;23/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;15.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;$15 each. These are limited edition Berta Hummel Collector Christmas plates made in Germany by Schmid Brothers. The set has annual Christmas plates from 1971 through 1989. Each plate has a unique year and a scene portraying the authentic works of Sister Berta Hummel. (see all photos). The scenes are repnoruced on the finest Bavarian porcelain. These plates are in mint condition and most are in their orinal box. The plates are 8&quot; in diameter and are great for serving special dishes and desserts during the festive season. They can be given as a gift or collected for their beauty.&#39;</span><span class="p">},</span> <span class="s1">&#39;1314346772&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;1982 Hummel Christmas Ornament - New - Excellent Condition!&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;1982 Hummel Christmas Ornament - New - Excellent Condition!&quot; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/SWgAAOSwPAxaENid/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/1982-hummel-christmas-ornament-new-excellent-condition/1314346772&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;23/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;15.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;This is a 1982 Hummel first annual collectors</span><span class="se">\&#39;</span><span class="s1"> Christmas ornament. It is new in its original box. There are 3 separate scenes on the ornament: Gift Bearers, Angel</span><span class="se">\&#39;</span><span class="s1">s Music and A Gift for Jesus. This ornament is from the authentic ARS edition and is like new condition. The ornament is 4&quot; across and a circumference of 10&quot;.&#39;</span><span class="p">},</span> <span class="s1">&#39;1378715810&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Mats Hummels game used 3 colour path autograph card&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Mats Hummels game used 3 colour path autograph card&quot; src=&quot;https://i.ebayimg.com/00/s/MTYwMFgxMjAw/z/cOUAAOSwoYxbfvez/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/mats-hummels-game-used-3-colour-path-autograph-card/1378715810&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;23/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;65.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;This is a signed 3 colour patch autograph of Mats Hummels from the 2017 Immaculate collection. Please feel free to look at my other ads. Thanks for looking!&#39;</span><span class="p">},</span> <span class="s1">&#39;1365444327&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Collectibles Plate Collection&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Collectibles Plate Collection&quot; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/FdQAAOSwh8NbMWWX/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/collectibles-plate-collection/1365444327&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;22/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;7.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;M.I. Hummel Plate Collection</span><span class="se">\n</span><span class="s1">&quot;Little Companions&quot;</span><span class="se">\n</span><span class="s1">An edition limited to 14 full firing days.</span><span class="se">\n</span><span class="s1">Plate no. YB 4571&#39;</span><span class="p">},</span> <span class="s1">&#39;1378040238&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel Angel Figurine&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Hummel Angel Figurine&quot; src=&quot;https://i.ebayimg.com/00/s/MjQwWDMyMA==/z/WfoAAOSwO2lbey5i/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-angel-figurine/1378040238&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;20/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;15.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Like new beautiful Hummel Angel Figurine.</span><span class="se">\n</span><span class="s1">Praying before bedtime. Might be a nice shower gift.</span><span class="se">\n</span><span class="s1">Collectible. Worth $100+&#39;</span><span class="p">},</span> <span class="s1">&#39;1335229712&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel Apple Tree Girl&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Hummel Apple Tree Girl&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/zhMAAOSwIzFaj8J2/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-apple-tree-girl/1335229712&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;13/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;90.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;4 inch figure. Full bee&#39;</span><span class="p">},</span> <span class="s1">&#39;1374824000&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel special edition silver spoons&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Hummel special edition silver spoons&quot; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/JQQAAOSws4lbaMC7/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-special-edition-silver-spoons/1374824000&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;06/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;25.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Three spoons still in original boxes.</span><span class="se">\n</span><span class="s1">Boy on phone.</span><span class="se">\n</span><span class="s1">Boy reading book</span><span class="se">\n</span><span class="s1">Child in hammock.</span><span class="se">\n</span><span class="s1">1982 ARS special editions.</span><span class="se">\n</span><span class="s1">$25.00 for all three.</span><span class="se">\n</span><span class="s1">Scarborough. location&#39;</span><span class="p">},</span> <span class="s1">&#39;1361843722&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Ceramic Figurine Erich Stauffer Hummel Style Girl Sewing&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Ceramic Figurine Erich Stauffer Hummel Style Girl Sewing&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDYwMA==/z/Ns4AAOSwdm1bHWS6/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/ceramic-figurine-erich-stauffer-hummel-style-girl-sewing/1361843722&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;05/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;5.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Vintage Ceramic Figurine Erich Stauffer Hummel Style Girl Sewing &quot;Playing House&quot;&#39;</span><span class="p">},</span> <span class="s1">&#39;1361844209&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;2PC Goebel Hummel Figurine &quot;Little Music Makers&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=</span><span class="se">\&#39;</span><span class="s1">2PC Goebel Hummel Figurine &quot;Little Music Makers&quot;</span><span class="se">\&#39;</span><span class="s1"> src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/AEcAAOSwuHJbHWUi/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/2pc-goebel-hummel-figurine-little-music-makers/1361844209&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;05/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;20.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;2 piece Goebel Hummel Figurine &quot;Little Music Makers&quot;&#39;</span><span class="p">},</span> <span class="s1">&#39;1361848787&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;HUMMEL 1980 - SPRING DANCE - ANNIVERSARY PLATE - SECOND EDITION&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;HUMMEL 1980 - SPRING DANCE - ANNIVERSARY PLATE - SECOND EDITION&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDYwMA==/z/M9UAAOSwzzVbHWkE/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-1980-spring-dance-anniversary-plate-second-edition/1361848787&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;05/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;30.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;HUMMEL-1980-SPRING-DANCE-ANNIVERSARY-PLATE-SECOND-EDITION&#39;</span><span class="p">},</span> <span class="s1">&#39;1156862038&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hummel Playmates, Discontinued&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Hummel Playmates, Discontinued&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/xXgAAOSw7n9XEnzf/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-playmates-discontinued/1156862038&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;03/08/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;150.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;4 inches high by 3.5 inches wide. Discontinued. With the &quot;V&quot; mark on the bottom.....very old.&#39;</span><span class="p">},</span> <span class="s1">&#39;1322284610&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Vintage  Porcelain  Doll&#39;</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;img alt=&quot;Vintage  Porcelain  Doll&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDM4OA==/z/X5wAAOSw1JVaPBw3/$_35.JPG&quot;/&gt;&#39;</span><span class="p">,</span> <span class="s1">&#39;url&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-porcelain-doll/1322284610&#39;</span><span class="p">,</span> <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span> <span class="s1">&#39;30/07/2018&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="s1">&#39;City of Toronto&#39;</span><span class="p">,</span> <span class="s1">&#39;price&#39;</span><span class="p">:</span> <span class="s1">&#39;20.00&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Rare Vintage 10&quot; Tall Hand Painted Porcelain Bisque Gretel Doll</span><span class="se">\n</span><span class="s1">This doll is from the Hummel series of Hansel &amp; Gretel Figurines</span><span class="se">\n</span><span class="s1">Lovely detailed hand painted face with minor paint loss on the lips. In original clothes which is in very good condition ,,,the waist apron has lost a bit of its elasticity but otherwise clothes is all original and in excellent condition.</span><span class="se">\n</span><span class="s1">She stands approx. 10&quot; tall when standing up.</span><span class="se">\n</span><span class="s1">She can stand or sit and all her joints arms and legs are moveable.</span><span class="se">\n</span><span class="s1">No chips or breaks or imperfections overall in excellent condition.</span><span class="se">\n</span><span class="s1">I believe she is Hummel inspired</span><span class="se">\n</span><span class="s1">If you can see the ad the item is available for pick up downtown Toronto. Please call or txt 416-816-4020 if interested&#39;</span><span class="p">}}</span>
+    <span class="k">return</span> <span class="n">ad_dict</span> <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span><span class="n">ad_dict</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -11996,18 +11978,7 @@ div#notebook {
 <div class="prompt input_prompt">In&nbsp;[4]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">connect_db</span><span class="p">():</span>
-    <span class="n">db_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;DB_URL&#39;</span><span class="p">)</span>
-    <span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{db_url}</span><span class="s1">&#39;</span><span class="p">)</span>
-    <span class="c1">#if not database_exists(engine.url):</span>
-    <span class="c1">#    create_database(engine.url)</span>
-    <span class="c1">#print(engine.url)</span>
-    <span class="c1"># create a configured &quot;Session&quot; class</span>
-    <span class="n">Session</span> <span class="o">=</span> <span class="n">sessionmaker</span><span class="p">(</span><span class="n">bind</span><span class="o">=</span><span class="n">engine</span><span class="p">)</span>
-
-    <span class="c1"># create a Session</span>
-    <span class="k">return</span> <span class="n">Session</span><span class="p">()</span>
-
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># Database models</span>
 <span class="k">class</span> <span class="nc">Listing</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;listings&#39;</span>
     
@@ -12029,19 +12000,8 @@ div#notebook {
     <span class="n">location</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">)</span>
     <span class="n">price</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">)</span>
     <span class="n">date_scraped</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">DateTime</span><span class="p">,</span> <span class="n">FetchedValue</span><span class="p">())</span>
-</pre></div>
 
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[5]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">Subject</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">Subject</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;subjects&#39;</span>
     
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
@@ -12050,19 +12010,8 @@ div#notebook {
     <span class="nb">id</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">BigInteger</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">name</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">)</span>
     <span class="n">date_scraped</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">DateTime</span><span class="p">,</span> <span class="n">FetchedValue</span><span class="p">())</span>
-</pre></div>
 
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[6]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">SubjectListing</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">SubjectListing</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;subject_listings&#39;</span>
     
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subject_id</span><span class="p">,</span> <span class="n">listing_id</span><span class="p">):</span>
@@ -12080,76 +12029,370 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[7]:</div>
+<div class="prompt input_prompt">In&nbsp;[112]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">get_subject_id</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">sess</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;Returns (id, stale), where id is the primary key for use in the subject_listings table,</span>
-<span class="sd">    and stale is True if the last query for this subject was a long time ago (&gt; 1 day), otherwise False&#39;&#39;&#39;</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Subject</span><span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">subject</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">select_subject</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">sess</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">sess</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Subject</span><span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">subject</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">update_date_scraped</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">sess</span><span class="p">):</span>
+    <span class="n">subject_entry</span> <span class="o">=</span> <span class="n">select_subject</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">sess</span><span class="p">)</span>
+    <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+    <span class="n">subject_entry</span><span class="o">.</span><span class="n">date_scraped</span> <span class="o">=</span> <span class="n">now</span>
+    <span class="n">sess</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">subject_entry</span><span class="p">)</span>
+    <span class="n">sess</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    
+<span class="k">def</span> <span class="nf">probe_subject</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">sess</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Returns (id, ads_to_skip), where id is the primary key for use in the </span>
+<span class="sd">    subject_listings table, and ads_to_skip is the list of ads already in the DB,</span>
+<span class="sd">    or None if the subject has been scraped recently (&lt; 1 day)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">subject_entry</span> <span class="o">=</span> <span class="n">select_subject</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">sess</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">subject_entry</span><span class="p">:</span>
         <span class="n">new_subject</span> <span class="o">=</span> <span class="n">Subject</span><span class="p">(</span><span class="n">subject</span><span class="p">)</span>
         <span class="n">sess</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">new_subject</span><span class="p">)</span>
         <span class="n">sess</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
         <span class="n">sess</span><span class="o">.</span><span class="n">refresh</span><span class="p">(</span><span class="n">new_subject</span><span class="p">)</span>
-        <span class="n">stale</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">new_subject</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">stale</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">new_subject</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">time_since_last_scrape</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span> <span class="o">-</span> <span class="n">result</span><span class="o">.</span><span class="n">date_scraped</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+        <span class="n">time_since_last_scrape</span> <span class="o">=</span> <span class="n">now</span> <span class="o">-</span> <span class="n">subject_entry</span><span class="o">.</span><span class="n">date_scraped</span>
         <span class="n">stale</span> <span class="o">=</span> <span class="n">time_since_last_scrape</span><span class="o">.</span><span class="n">days</span> <span class="o">&gt;</span> <span class="mi">1</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">stale</span><span class="p">)</span>
-</pre></div>
+        <span class="k">if</span> <span class="n">stale</span><span class="p">:</span>
+            <span class="n">listings</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">SubjectListing</span><span class="o">.</span><span class="n">listing_id</span><span class="p">)</span> \
+                <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Subject</span><span class="p">,</span> <span class="n">Subject</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">SubjectListing</span><span class="o">.</span><span class="n">subject_id</span><span class="p">)</span> \
+                <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">Subject</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">subject</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">subject_entry</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">set</span><span class="p">([</span><span class="n">listing</span><span class="o">.</span><span class="n">listing_id</span> <span class="k">for</span> <span class="n">listing</span> <span class="ow">in</span> <span class="n">listings</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">subject_entry</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="kc">None</span>
 
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[13]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">sess</span> <span class="o">=</span> <span class="n">connect_db</span><span class="p">()</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[14]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">subject_id</span><span class="p">,</span> <span class="n">stale</span> <span class="o">=</span> <span class="n">get_subject_id</span><span class="p">(</span><span class="s1">&#39;hummels&#39;</span><span class="p">,</span> <span class="n">sess</span><span class="p">)</span>
-<span class="k">if</span> <span class="n">stale</span><span class="p">:</span>
-    
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[12]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">write_ads_to_db</span><span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">ads</span><span class="p">,</span> <span class="n">sess</span><span class="p">):</span>  <span class="c1"># Writes ads from given dictionary to given file</span>
+<span class="k">def</span> <span class="nf">write_ads_to_db</span><span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">ads</span><span class="p">,</span> <span class="n">sess</span><span class="p">):</span>  <span class="c1"># Writes ads from given dictionary to given file</span>
     <span class="n">listings</span> <span class="o">=</span> <span class="p">[</span><span class="n">Listing</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="o">**</span><span class="n">ad</span><span class="p">)</span> <span class="k">for</span> <span class="nb">id</span><span class="p">,</span> <span class="n">ad</span> <span class="ow">in</span> <span class="n">ads</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
     <span class="k">for</span> <span class="n">listing</span> <span class="ow">in</span> <span class="n">listings</span><span class="p">:</span>
         <span class="n">sess</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">listing</span><span class="p">)</span>
         <span class="n">sess</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">SubjectListing</span><span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">listing</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
         <span class="n">sess</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
-        
-<span class="c1">#print(hummel_ads)</span>
-<span class="n">write_ads_to_db</span><span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">hummel_ads</span><span class="p">,</span> <span class="n">sess</span><span class="p">)</span>
 </pre></div>
 
 </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">connect_db</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Returns a db session</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">db_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;DB_URL&#39;</span><span class="p">)</span>
+    <span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="n">db_url</span><span class="p">)</span>
+    <span class="n">Session</span> <span class="o">=</span> <span class="n">sessionmaker</span><span class="p">(</span><span class="n">bind</span><span class="o">=</span><span class="n">engine</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Session</span><span class="p">()</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">get_listings</span><span class="p">(</span><span class="n">subject</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Returns a dataframe with all listings for a subject</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">sess</span> <span class="o">=</span> <span class="n">connect_db</span><span class="p">()</span>
+    <span class="n">subject_id</span><span class="p">,</span> <span class="n">ads_to_skip</span> <span class="o">=</span> <span class="n">probe_subject</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">sess</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">ads_to_skip</span><span class="p">)</span>
+    
+    <span class="c1"># Scrape unless it was done recently</span>
+    <span class="k">if</span> <span class="n">ads_to_skip</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">all_ads_scraped</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">all_ads_scraped</span><span class="p">:</span>
+            <span class="n">ads</span><span class="p">,</span> <span class="n">url</span> <span class="o">=</span> <span class="n">scrape</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">ads_to_skip</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
+            <span class="n">all_ads_scraped</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">url</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">False</span>
+            <span class="n">write_ads_to_db</span><span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">ads</span><span class="p">,</span> <span class="n">sess</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">ad_id</span> <span class="ow">in</span> <span class="n">ads</span><span class="p">:</span>
+                <span class="n">ads_to_skip</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">ad_id</span><span class="p">)</span>
+                
+        <span class="n">update_date_scraped</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">sess</span><span class="p">)</span>
+    
+    <span class="c1"># This could be done with the ORM</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">    select listing_id, title, description from (</span>
+<span class="s1">        select * from subjects</span>
+<span class="s1">            inner join subject_listings on subjects.id = subject_listings.subject_id where subjects.name = &#39;</span><span class="si">{subject}</span><span class="s1">&#39;</span>
+<span class="s1">    ) as this_subject_listings</span>
+<span class="s1">        inner join listings on this_subject_listings.listing_id = listings.id;</span>
+<span class="s1">    &#39;&#39;&#39;</span>
+    
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_sql</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">sess</span><span class="o">.</span><span class="n">get_bind</span><span class="p">(),</span> <span class="n">index_col</span><span class="o">=</span><span class="s1">&#39;listing_id&#39;</span><span class="p">)</span>       
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[119]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">get_listings</span><span class="p">(</span><span class="s1">&#39;hummels&#39;</span><span class="p">)</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+<div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>1 None
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+<div class="prompt output_prompt">Out[119]:</div>
+
+
+
+<div class="output_html rendered_html output_subarea output_execute_result">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>title</th>
+      <th>description</th>
+    </tr>
+    <tr>
+      <th>listing_id</th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>1358609245</th>
+      <td>Hummel "Trumpet Boy"</td>
+      <td>Early Goebel Hummel - Germany\n"Trumpet Boy" -...</td>
+    </tr>
+    <tr>
+      <th>1358607961</th>
+      <td>Hummel "Boy with Basket"</td>
+      <td>Early Goebel Hummel - Germany\n"Village Boy" #...</td>
+    </tr>
+    <tr>
+      <th>1260421734</th>
+      <td>hummel like figurines</td>
+      <td>Hummel-Like Porcelain figurines , set of 6, mi...</td>
+    </tr>
+    <tr>
+      <th>1259656455</th>
+      <td>vintage Hummel like porcelain</td>
+      <td>vintage Hummel like porcelain figurine, 5" hig...</td>
+    </tr>
+    <tr>
+      <th>1340613666</th>
+      <td>Hummels - "Little Gardner"; "School Girl"; or ...</td>
+      <td>Beautiful figurines. No chips or scratches. Co...</td>
+    </tr>
+    <tr>
+      <th>1355433085</th>
+      <td>Hummel " Apple Tree Boy " Figurine</td>
+      <td>For sale is a Hummel Figurine titled " Apple T...</td>
+    </tr>
+    <tr>
+      <th>419236774</th>
+      <td>Vintage Hummel "Happy Traveler" 109/0</td>
+      <td>Pristine condition. TMK 3 (1960-1972), Sty-Bee...</td>
+    </tr>
+    <tr>
+      <th>1380413234</th>
+      <td>vintage Hummel-like figurines</td>
+      <td>Vintage Hummel-like figurines\nMade in Japan -...</td>
+    </tr>
+    <tr>
+      <th>1224890286</th>
+      <td>Hummel Plates, 3</td>
+      <td>Price is for all 3. Can be purchased individua...</td>
+    </tr>
+    <tr>
+      <th>1224722568</th>
+      <td>Berta Hummel 1977 Limited Edition Christmas Plate</td>
+      <td>Excellent condition, with original box and pac...</td>
+    </tr>
+    <tr>
+      <th>1224660959</th>
+      <td>Hummel 1977 Plate - Apple Tree Boy</td>
+      <td>No longer being made, vintage. In excellent co...</td>
+    </tr>
+    <tr>
+      <th>1379273218</th>
+      <td>Hummel Umbrella Boy and Girl porcelain dolls w...</td>
+      <td>Hummel Umbrella Boy and Girl porcelain dolls w...</td>
+    </tr>
+    <tr>
+      <th>1314353570</th>
+      <td>Vintage Berta Hummel Christmas Collector Plate...</td>
+      <td>$15 each. These are limited edition Berta Humm...</td>
+    </tr>
+    <tr>
+      <th>1314346772</th>
+      <td>1982 Hummel Christmas Ornament - New - Excelle...</td>
+      <td>This is a 1982 Hummel first annual collectors'...</td>
+    </tr>
+    <tr>
+      <th>1378715810</th>
+      <td>Mats Hummels game used 3 colour path autograph...</td>
+      <td>This is a signed 3 colour patch autograph of M...</td>
+    </tr>
+    <tr>
+      <th>1365444327</th>
+      <td>Collectibles Plate Collection</td>
+      <td>M.I. Hummel Plate Collection\n"Little Companio...</td>
+    </tr>
+    <tr>
+      <th>1378040238</th>
+      <td>Hummel Angel Figurine</td>
+      <td>Like new beautiful Hummel Angel Figurine.\nPra...</td>
+    </tr>
+    <tr>
+      <th>1335229712</th>
+      <td>Hummel Apple Tree Girl</td>
+      <td>4 inch figure. Full bee</td>
+    </tr>
+    <tr>
+      <th>1374824000</th>
+      <td>Hummel special edition silver spoons</td>
+      <td>Three spoons still in original boxes.\nBoy on ...</td>
+    </tr>
+    <tr>
+      <th>1361843722</th>
+      <td>Ceramic Figurine Erich Stauffer Hummel Style G...</td>
+      <td>Vintage Ceramic Figurine Erich Stauffer Hummel...</td>
+    </tr>
+    <tr>
+      <th>1361844209</th>
+      <td>2PC Goebel Hummel Figurine "Little Music Makers"</td>
+      <td>2 piece Goebel Hummel Figurine "Little Music M...</td>
+    </tr>
+    <tr>
+      <th>1361848787</th>
+      <td>HUMMEL 1980 - SPRING DANCE - ANNIVERSARY PLATE...</td>
+      <td>HUMMEL-1980-SPRING-DANCE-ANNIVERSARY-PLATE-SEC...</td>
+    </tr>
+    <tr>
+      <th>1156862038</th>
+      <td>Hummel Playmates, Discontinued</td>
+      <td>4 inches high by 3.5 inches wide. Discontinued...</td>
+    </tr>
+    <tr>
+      <th>1202550115</th>
+      <td>Hummel Style Japanese Girl Chicken</td>
+      <td>Hummel Style Japanese 5 x 4 inches no chips cr...</td>
+    </tr>
+    <tr>
+      <th>1322284610</th>
+      <td>Vintage  Porcelain  Doll</td>
+      <td>Rare Vintage 10" Tall Hand Painted Porcelain B...</td>
+    </tr>
+    <tr>
+      <th>1386354502</th>
+      <td>Disney Goebel Hummel Thumper Rabbit Figurine</td>
+      <td>This was bought sometime in early 1980s when w...</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[117]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">scrape</span><span class="p">(</span><span class="s1">&#39;panasonic tcp50x5 plasma tv&#39;</span><span class="p">)</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+<div class="prompt"></div>
+
+
+<div class="output_subarea output_stream output_stderr output_text">
+<pre>INFO:root:New ad found! Ad id: 1372011372
+</pre>
+</div>
+</div>
+
+<div class="output_area">
+
+<div class="prompt output_prompt">Out[117]:</div>
+
+
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>{1372011372: {&#39;title&#39;: &#39;Panasonic TCP50X5 Plasma TV Parts Power Supply, A, SN Board&#39;,
+  &#39;img&#39;: &#39;&lt;img alt=&#34;Panasonic TCP50X5 Plasma TV Parts Power Supply, A, SN Board&#34; src=&#34;https://i.ebayimg.com/00/s/MzIyWDQ3MA==/z/Q6oAAOSwikdasvvH/$_35.JPG&#34;/&gt;&#39;,
+  &#39;url&#39;: &#39;http://www.kijiji.ca/v-buy-sell-other/city-of-toronto/panasonic-tcp50x5-plasma-tv-parts-power-supply-a-sn-board/1372011372&#39;,
+  &#39;details&#39;: &#39;&#39;,
+  &#39;date&#39;: &#39;19/09/2018&#39;,
+  &#39;location&#39;: &#39;City of Toronto&#39;,
+  &#39;price&#39;: &#39;-1.00&#39;,
+  &#39;description&#39;: &#39;Panasonic TCP50X5 Plasma TV PartsN0AE6JK00006 (B159-201) Power Supply Unit\nTXN/A1SFUUS (TNPH1001UB) A Board\nTXNSN1RHUU (TNPA5593) SN Board for TC-P50X5/TC-P50XT50\nTBL5ZX0337 Stand\nTXNC11RHUU (TNPA5590) C1 Board\nTXNC21RHUU (TNPA5591) C2 Board\nTXN/K1SGUUS (TNPA5602AD) K BoardEXCHANGE SERVICE / REPAIRNote: We need the Old Parts, without old parts, the sales price of our parts will be more than advertised.1. Your board has never been repaired or never been replaced any parts or missing parts\n2. Burnt, cracked, liquid spill or damage from an attempted repair is not an acceptable condition for repairing\n3. If your board has been repaired or replaced parts, it may increase the extra bill up to $35.\n4. Shipping and Pickup Must be done by customer. For Shipping infomation please talk to Sales, Call in advance for Pickup in store.Products may not be exactly as pictured, Price and Availability subject to change without notice.&#39;}}</pre>
+</div>
+
+</div>
+
 </div>
 </div>
 
@@ -13172,6 +13415,19 @@ TC (4)
 <span class="c1">#    preferred_spelling = max(set(spelling_cands), key=spelling_cands.count)</span>
 <span class="c1">#    preferred_spellings[word] = (preferred_spelling, n_occurrences)</span>
 <span class="c1"># preferred_spellings</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[32]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1">#hummel_ads = {&#39;1202550115&#39;: {&#39;title&#39;: &#39;Hummel Style Japanese Girl Chicken&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Hummel Style Japanese Girl Chicken&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/ySEAAOSwTA9X5tuP/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-style-japanese-girl-chicken/1202550115&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;&lt; 23 hours ago&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;-1.00&#39;, &#39;description&#39;: &#39;Hummel Style Japanese 5 x 4 inches no chips cracks or fleas&#39;}, &#39;1358609245&#39;: {&#39;title&#39;: &#39;Hummel &quot;Trumpet Boy&quot;&#39;, &#39;img&#39;: &#39;&lt;img alt=\&#39;Hummel &quot;Trumpet Boy&quot;\&#39; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/kJIAAOSw1xVbDIcB/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-trumpet-boy/1358609245&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;20/09/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;25.00&#39;, &#39;description&#39;: &#39;Early Goebel Hummel - Germany\n&quot;Trumpet Boy&quot; - #97\nStands 4 1/2&quot; high&#39;}, &#39;1358607961&#39;: {&#39;title&#39;: &#39;Hummel &quot;Boy with Basket&quot;&#39;, &#39;img&#39;: &#39;&lt;img alt=\&#39;Hummel &quot;Boy with Basket&quot;\&#39; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/yloAAOSw8SpbDIXj/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-boy-with-basket/1358607961&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;20/09/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;25.00&#39;, &#39;description&#39;: &#39;Early Goebel Hummel - Germany\n&quot;Village Boy&quot; #51 3/0\nStands 4&quot; high&#39;}, &#39;1260421734&#39;: {&#39;title&#39;: &#39;hummel like figurines&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;hummel like figurines&quot; src=&quot;https://i.ebayimg.com/00/s/NjQwWDQ4MA==/z/PNgAAOSw7GRZB~Te/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-like-figurines/1260421734&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;18/09/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;35.00&#39;, &#39;description&#39;: &#39;Hummel-Like Porcelain figurines , set of 6, mint condition&#39;}, &#39;1259656455&#39;: {&#39;title&#39;: &#39;vintage Hummel like porcelain&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;vintage Hummel like porcelain&quot; src=&quot;https://i.ebayimg.com/00/s/NjQwWDQ4MA==/z/8HcAAOSwlndZBNhB/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-hummel-like-porcelain/1259656455&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;14/09/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;25.00&#39;, &#39;description&#39;: &#39;vintage Hummel like porcelain figurine, 5&quot; high, mint condition&#39;}, &#39;1340613666&#39;: {&#39;title&#39;: &#39;Hummels - &quot;Little Gardner&quot;; &quot;School Girl&quot;; or &quot;For Mother&quot;&#39;, &#39;img&#39;: &#39;&lt;img alt=\&#39;Hummels - &quot;Little Gardner&quot;; &quot;School Girl&quot;; or &quot;For Mother&quot;\&#39; src=&quot;https://i.ebayimg.com/00/s/NTMzWDgwMA==/z/D~IAAOSwwz5arsuK/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummels-little-gardner-school-girl-or-for-mother/1340613666&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;09/09/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;50.00&#39;, &#39;description&#39;: &#39;Beautiful figurines. No chips or scratches. Complete with name tags attached. Excellent condition. Looking for $50.00 each, will accept reasonable offer&#39;}, &#39;1355433085&#39;: {&#39;title&#39;: &#39;Hummel &quot; Apple Tree Boy &quot; Figurine&#39;, &#39;img&#39;: &#39;&lt;img alt=\&#39;Hummel &quot; Apple Tree Boy &quot; Figurine\&#39; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/FFMAAOSwHf5a~GWV/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-apple-tree-boy-figurine/1355433085&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;04/09/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;50.00&#39;, &#39;description&#39;: &#39;For sale is a Hummel Figurine titled &quot; Apple Tree Boy &quot;. The base has a small chip that is barely noticeable,..the rest of this figurine is in perfect condition. It measures 6&quot; tall. Older trade mark on bottom. Will ship if needed. Please visit my other items I have up for sale.&#39;}, &#39;419236774&#39;: {&#39;title&#39;: &#39;Vintage Hummel &quot;Happy Traveler&quot; 109/0&#39;, &#39;img&#39;: &#39;&lt;img alt=\&#39;Vintage Hummel &quot;Happy Traveler&quot; 109/0\&#39; src=&quot;https://i.ebayimg.com/00/s/MTAwMFg3NTA=/$(KGrHqJ,!kwFBVKMfvwGBQbHRQrfH!~~48_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-hummel-happy-traveler-109-0/419236774&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;01/09/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;150.00&#39;, &#39;description&#39;: &#39;Pristine condition. TMK 3 (1960-1972), Sty-Bee. Retired in 1982. Price negotiable. After 5:00 p.m. and on weekends, call 416-825-3561.&#39;}, &#39;1380413234&#39;: {&#39;title&#39;: &#39;vintage Hummel-like figurines&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;vintage Hummel-like figurines&quot; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/xt4AAOSwfbpbiFAi/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-hummel-like-figurines/1380413234&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;30/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;30.00&#39;, &#39;description&#39;: &#39;Vintage Hummel-like figurines\nMade in Japan - C7654\nBoy playing violin\nGirl playing drum\nexcellent condition&#39;}, &#39;1224890286&#39;: {&#39;title&#39;: &#39;Hummel Plates, 3&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Hummel Plates, 3&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/PdQAAOSwa~BYVHVV/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-plates-3/1224890286&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;26/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;60.00&#39;, &#39;description&#39;: &#39;Price is for all 3. Can be purchased individually as well&#39;}, &#39;1224722568&#39;: {&#39;title&#39;: &#39;Berta Hummel 1977 Limited Edition Christmas Plate&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Berta Hummel 1977 Limited Edition Christmas Plate&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/n9AAAOSwa~BYU4bb/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/berta-hummel-1977-limited-edition-christmas-plate/1224722568&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;26/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;140.00&#39;, &#39;description&#39;: &#39;Excellent condition, with original box and packaging, limited edition.&#39;}, &#39;1224660959&#39;: {&#39;title&#39;: &#39;Hummel 1977 Plate - Apple Tree Boy&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Hummel 1977 Plate - Apple Tree Boy&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/T68AAOSwcUBYUyQz/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-1977-plate-apple-tree-boy/1224660959&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;26/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;150.00&#39;, &#39;description&#39;: &#39;No longer being made, vintage. In excellent condition. With original box and packaging.&#39;}, &#39;1379273218&#39;: {&#39;title&#39;: &#39;Hummel Umbrella Boy and Girl porcelain dolls with soft body&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Hummel Umbrella Boy and Girl porcelain dolls with soft body &quot; src=&quot;https://i.ebayimg.com/00/s/MTIwMFgxNjAw/z/4hQAAOSwK6NbgfVr/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-umbrella-boy-and-girl-porcelain-dolls-with-soft-body/1379273218&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;25/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;100.00&#39;, &#39;description&#39;: &#39;Hummel Umbrella Boy and Girl porcelain dolls with soft body. Great condition dolls have been kept wrapped in storage. Have documents for boy doll but not girl.\nPrice is negotiable&#39;}, &#39;1314353570&#39;: {&#39;title&#39;: &#39;Vintage Berta Hummel Christmas Collector Plates - Mint!!&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Vintage Berta Hummel Christmas Collector Plates - Mint!!&quot; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/W60AAOSwFyhaEOEc/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-berta-hummel-christmas-collector-plates-mint/1314353570&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;23/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;15.00&#39;, &#39;description&#39;: &#39;$15 each. These are limited edition Berta Hummel Collector Christmas plates made in Germany by Schmid Brothers. The set has annual Christmas plates from 1971 through 1989. Each plate has a unique year and a scene portraying the authentic works of Sister Berta Hummel. (see all photos). The scenes are repnoruced on the finest Bavarian porcelain. These plates are in mint condition and most are in their orinal box. The plates are 8&quot; in diameter and are great for serving special dishes and desserts during the festive season. They can be given as a gift or collected for their beauty.&#39;}, &#39;1314346772&#39;: {&#39;title&#39;: &#39;1982 Hummel Christmas Ornament - New - Excellent Condition!&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;1982 Hummel Christmas Ornament - New - Excellent Condition!&quot; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/SWgAAOSwPAxaENid/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/1982-hummel-christmas-ornament-new-excellent-condition/1314346772&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;23/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;15.00&#39;, &#39;description&#39;: &#39;This is a 1982 Hummel first annual collectors\&#39; Christmas ornament. It is new in its original box. There are 3 separate scenes on the ornament: Gift Bearers, Angel\&#39;s Music and A Gift for Jesus. This ornament is from the authentic ARS edition and is like new condition. The ornament is 4&quot; across and a circumference of 10&quot;.&#39;}, &#39;1378715810&#39;: {&#39;title&#39;: &#39;Mats Hummels game used 3 colour path autograph card&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Mats Hummels game used 3 colour path autograph card&quot; src=&quot;https://i.ebayimg.com/00/s/MTYwMFgxMjAw/z/cOUAAOSwoYxbfvez/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/mats-hummels-game-used-3-colour-path-autograph-card/1378715810&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;23/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;65.00&#39;, &#39;description&#39;: &#39;This is a signed 3 colour patch autograph of Mats Hummels from the 2017 Immaculate collection. Please feel free to look at my other ads. Thanks for looking!&#39;}, &#39;1365444327&#39;: {&#39;title&#39;: &#39;Collectibles Plate Collection&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Collectibles Plate Collection&quot; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/FdQAAOSwh8NbMWWX/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/collectibles-plate-collection/1365444327&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;22/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;7.00&#39;, &#39;description&#39;: &#39;M.I. Hummel Plate Collection\n&quot;Little Companions&quot;\nAn edition limited to 14 full firing days.\nPlate no. YB 4571&#39;}, &#39;1378040238&#39;: {&#39;title&#39;: &#39;Hummel Angel Figurine&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Hummel Angel Figurine&quot; src=&quot;https://i.ebayimg.com/00/s/MjQwWDMyMA==/z/WfoAAOSwO2lbey5i/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-angel-figurine/1378040238&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;20/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;15.00&#39;, &#39;description&#39;: &#39;Like new beautiful Hummel Angel Figurine.\nPraying before bedtime. Might be a nice shower gift.\nCollectible. Worth $100+&#39;}, &#39;1335229712&#39;: {&#39;title&#39;: &#39;Hummel Apple Tree Girl&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Hummel Apple Tree Girl&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/zhMAAOSwIzFaj8J2/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-apple-tree-girl/1335229712&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;13/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;90.00&#39;, &#39;description&#39;: &#39;4 inch figure. Full bee&#39;}, &#39;1374824000&#39;: {&#39;title&#39;: &#39;Hummel special edition silver spoons&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Hummel special edition silver spoons&quot; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/JQQAAOSws4lbaMC7/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-special-edition-silver-spoons/1374824000&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;06/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;25.00&#39;, &#39;description&#39;: &#39;Three spoons still in original boxes.\nBoy on phone.\nBoy reading book\nChild in hammock.\n1982 ARS special editions.\n$25.00 for all three.\nScarborough. location&#39;}, &#39;1361843722&#39;: {&#39;title&#39;: &#39;Ceramic Figurine Erich Stauffer Hummel Style Girl Sewing&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Ceramic Figurine Erich Stauffer Hummel Style Girl Sewing&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDYwMA==/z/Ns4AAOSwdm1bHWS6/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/ceramic-figurine-erich-stauffer-hummel-style-girl-sewing/1361843722&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;05/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;5.00&#39;, &#39;description&#39;: &#39;Vintage Ceramic Figurine Erich Stauffer Hummel Style Girl Sewing &quot;Playing House&quot;&#39;}, &#39;1361844209&#39;: {&#39;title&#39;: &#39;2PC Goebel Hummel Figurine &quot;Little Music Makers&quot;&#39;, &#39;img&#39;: &#39;&lt;img alt=\&#39;2PC Goebel Hummel Figurine &quot;Little Music Makers&quot;\&#39; src=&quot;https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/AEcAAOSwuHJbHWUi/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/2pc-goebel-hummel-figurine-little-music-makers/1361844209&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;05/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;20.00&#39;, &#39;description&#39;: &#39;2 piece Goebel Hummel Figurine &quot;Little Music Makers&quot;&#39;}, &#39;1361848787&#39;: {&#39;title&#39;: &#39;HUMMEL 1980 - SPRING DANCE - ANNIVERSARY PLATE - SECOND EDITION&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;HUMMEL 1980 - SPRING DANCE - ANNIVERSARY PLATE - SECOND EDITION&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDYwMA==/z/M9UAAOSwzzVbHWkE/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-1980-spring-dance-anniversary-plate-second-edition/1361848787&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;05/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;30.00&#39;, &#39;description&#39;: &#39;HUMMEL-1980-SPRING-DANCE-ANNIVERSARY-PLATE-SECOND-EDITION&#39;}, &#39;1156862038&#39;: {&#39;title&#39;: &#39;Hummel Playmates, Discontinued&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Hummel Playmates, Discontinued&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/xXgAAOSw7n9XEnzf/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-playmates-discontinued/1156862038&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;03/08/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;150.00&#39;, &#39;description&#39;: &#39;4 inches high by 3.5 inches wide. Discontinued. With the &quot;V&quot; mark on the bottom.....very old.&#39;}, &#39;1322284610&#39;: {&#39;title&#39;: &#39;Vintage  Porcelain  Doll&#39;, &#39;img&#39;: &#39;&lt;img alt=&quot;Vintage  Porcelain  Doll&quot; src=&quot;https://i.ebayimg.com/00/s/ODAwWDM4OA==/z/X5wAAOSw1JVaPBw3/$_35.JPG&quot;/&gt;&#39;, &#39;url&#39;: &#39;http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-porcelain-doll/1322284610&#39;, &#39;details&#39;: &#39;&#39;, &#39;date&#39;: &#39;30/07/2018&#39;, &#39;location&#39;: &#39;City of Toronto&#39;, &#39;price&#39;: &#39;20.00&#39;, &#39;description&#39;: &#39;Rare Vintage 10&quot; Tall Hand Painted Porcelain Bisque Gretel Doll\nThis doll is from the Hummel series of Hansel &amp; Gretel Figurines\nLovely detailed hand painted face with minor paint loss on the lips. In original clothes which is in very good condition ,,,the waist apron has lost a bit of its elasticity but otherwise clothes is all original and in excellent condition.\nShe stands approx. 10&quot; tall when standing up.\nShe can stand or sit and all her joints arms and legs are moveable.\nNo chips or breaks or imperfections overall in excellent condition.\nI believe she is Hummel inspired\nIf you can see the ad the item is available for pick up downtown Toronto. Please call or txt 416-816-4020 if interested&#39;}}</span>
 </pre></div>
 
 </div>

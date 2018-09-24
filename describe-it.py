@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[1]:
+# In[62]:
 
 
 import os
@@ -9,6 +9,9 @@ import sys
 import regex as re
 import logging
 import datetime
+
+level = 'INFO' #'ERROR'
+logging.basicConfig(level=level)
 
 import requests
 from bs4 import BeautifulSoup
@@ -19,7 +22,7 @@ import pandas as pd
 import sklearn as sk
 
 from sqlalchemy import create_engine, Column, Integer, BigInteger, String, DateTime
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, aliased
 from sqlalchemy_utils import database_exists, create_database
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.schema import FetchedValue
@@ -29,16 +32,17 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
 
-# In[2]:
+# In[1]:
 
 
 # Derived from https://github.com/CRutkowski/Kijiji-Scraper
-def parse_ad_summary(html): # Parses ad html trees and sorts relevant data into a dictionary
+def parse_ad_summary(html):
+    '''
+    Parses several fields of a listing summary (except the description, which is truncated),
+    then returns a dict of several these fields
+    '''
     ad_info = {}
-
-    #description = html.find('div', {'class': 'description'}).text.strip()
-    #description = description.replace(html.find('div', {'class': 'details'}).text.strip(), '')
-    #print(description)
+    
     try:
         ad_info['title'] = html.find('a', {'class': 'title'}).text.strip()
     except:
@@ -64,6 +68,7 @@ def parse_ad_summary(html): # Parses ad html trees and sorts relevant data into 
     except:
         logging.error('Unable to parse Date data.')
 
+    # The location field is affixed with the date for some reason
     try:
         location = html.find('div', {'class': 'location'}).text.strip()
         location = location.replace(ad_info['date'], '')
@@ -71,6 +76,8 @@ def parse_ad_summary(html): # Parses ad html trees and sorts relevant data into 
     except:
         logging.error('Unable to parse Location data.')
 
+    # In addition to normal prices, there can be 'Free' ($0), 'Please Contact' ($-1),
+    # some other value ($-2), or empty ($-3)
     try:
         price = html.find('div', {'class': 'price'}).text.strip()
         if price[0] == '$':
@@ -84,12 +91,14 @@ def parse_ad_summary(html): # Parses ad html trees and sorts relevant data into 
         ad_info['price'] = price
     except:
         logging.error('Unable to parse Price data.')
+        ad_info['price'] = '-3.00'
 
     return ad_info
 
 def parse_ad_page(url):
+    '''Parses the description from an ad page'''
     try:
-        page = requests.get(url) # Get the html data from the URL
+        page = requests.get(url)
     except:
         print('[Error] Unable to load ' + url)
         return ''
@@ -101,100 +110,68 @@ def parse_ad_page(url):
     except:
         logging.error('Unable to parse ad description.')
 
-    
-    # There's a meme going around that ORMs are a pain, so for now I'll use raw SQL
-#     sql = [
-#         f'insert into subjects ({subject})',
-#     ]
-#     _, ad = list(ads.items())[0]
-#     print(ad)
-#     print(', '.join([
-#         ad['title'],
-#         ad['img'],
-#         ad['url'],
-#         ad['details'],
-#         ad['description'],
-#         ad['date'],
-#         ad['location'],
-#         ad['price']
-#     ]))
-#     vals_to_insert = ', '.join(['(%s)' % ', '.join([
-#         ad['title'],
-#         ad['img'],
-#         ad['url'],
-#         ad['details'],
-#         ad['description'],
-#         ad['date'],
-#         ad['location'],
-#         ad['price']
-#     ]) for ad in ads])
-#     print(vals_to_insert)
-#     sql += f'insert into listings values {vals_to_insert}'
-
-def scrape(subject, existing_ad_ids = None):  # Pulls page data from a given kijiji url and finds all ads on each page
+def scrape(subject, existing_ad_ids = None, limit = None, url = None):
+    '''
+    Args are a search string for some subject, a list of existing ad IDs to skip,
+    a limit to the number of results to return, and a url from which to start
+    (in case, for example, a previous scrape was halted and is now being resumed).
+    Returns (ads, all_ads_scraped); all_ads_scraped is whether or not an imposed limit was reached
+    '''
     # Initialize variables for loop
     ad_dict = {}
     # Shallow copy for now
     ad_ids_to_skip = existing_ad_ids if existing_ad_ids is not None else set()
 
-    url = f'https://www.kijiji.ca/b-city-of-toronto/{subject}/k0l1700273?ll=43.650843,-79.377573&dc=true'
+    if url is None: url =         f'https://www.kijiji.ca/b-city-of-toronto/{subject}/k0l1700273?ll=43.650843,-79.377573&dc=true'
 
+    ads_parsed = 0
+    
     while url:
 
         try:
-            page = requests.get(url) # Get the html data from the URL
+            page = requests.get(url)
         except:
-            print('[Error] Unable to load ' + url)
+            logger.error(f'[Error] Unable to load {url}')
             return
 
         soup = BeautifulSoup(page.content, 'html.parser')
 
-        kijiji_ads = soup.find_all('div', {'class': 'regular-ad'})  # Finds all ad trees in page html.
-
-        third_party_ads = soup.find_all('div', {'class': 'third-party'}) # Find all third-party ads to skip them
+        ads = soup.find_all('div', {'class': 'regular-ad'})
+        
+        # Skip third-party ads; these third parties are typically small retailers
+        third_party_ads = soup.find_all('div', {'class': 'third-party'})
         for ad in third_party_ads:
-            ad_ids_to_skip.add(ad['data-ad-id'])
+            ad_ids_to_skip.add(int(ad['data-ad-id']))
 
+        # Parse ads until the limit is reached
         for ad in kijiji_ads:
-            title = ad.find('a', {'class': 'title'}).text.strip() # Get the ad title
-            ad_id = ad['data-ad-id'] # Get the ad id
-            #if not [False for match in exclude_list if match in title.lower()]: # If any of the title words match the exclude list then skip
-            #if [True for match in checklist if match in title.lower()]:
-            if ad_id not in ad_ids_to_skip: # Skip third-party ads and ads already found
-                #logging.info(f'New ad found! Ad id: {ad_id}')
-                ad_info = parse_ad_summary(ad) # Parse data from ad
+            title = ad.find('a', {'class': 'title'}).text.strip()
+            ad_id = int(ad['data-ad-id'])
+            
+            if ad_id not in ad_ids_to_skip:
+                logging.info(f'New ad found! Ad id: {ad_id}')
+                ad_info = parse_ad_summary(ad)
                 ad_url = ad_info['url']
                 ad_info['description'] = parse_ad_page(ad_url)
                 ad_dict[ad_id] = ad_info
+                if limit is not None:
+                    ads_parsed += 1
+                    if ads_parsed >= limit: return (ad_dict, url)
+            else:
+                logging.debug('Skip ad')
+                
         url = soup.find('a', {'title' : 'Next'})
         if url:
-            url = 'https://www.kijiji.ca' + url['href']
+            url_path = url['href']
+            url = f'https://www.kijiji.ca{url_path}'
 
-    return ad_dict
-
-
-# In[3]:
-
-
-#hummel_ads = scrape('hummel')
-hummel_ads = {'1202550115': {'title': 'Hummel Style Japanese Girl Chicken', 'img': '<img alt="Hummel Style Japanese Girl Chicken" src="https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/ySEAAOSwTA9X5tuP/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-style-japanese-girl-chicken/1202550115', 'details': '', 'date': '< 23 hours ago', 'location': 'City of Toronto', 'price': '-1.00', 'description': 'Hummel Style Japanese 5 x 4 inches no chips cracks or fleas'}, '1358609245': {'title': 'Hummel "Trumpet Boy"', 'img': '<img alt=\'Hummel "Trumpet Boy"\' src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/kJIAAOSw1xVbDIcB/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-trumpet-boy/1358609245', 'details': '', 'date': '20/09/2018', 'location': 'City of Toronto', 'price': '25.00', 'description': 'Early Goebel Hummel - Germany\n"Trumpet Boy" - #97\nStands 4 1/2" high'}, '1358607961': {'title': 'Hummel "Boy with Basket"', 'img': '<img alt=\'Hummel "Boy with Basket"\' src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/yloAAOSw8SpbDIXj/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-boy-with-basket/1358607961', 'details': '', 'date': '20/09/2018', 'location': 'City of Toronto', 'price': '25.00', 'description': 'Early Goebel Hummel - Germany\n"Village Boy" #51 3/0\nStands 4" high'}, '1260421734': {'title': 'hummel like figurines', 'img': '<img alt="hummel like figurines" src="https://i.ebayimg.com/00/s/NjQwWDQ4MA==/z/PNgAAOSw7GRZB~Te/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-like-figurines/1260421734', 'details': '', 'date': '18/09/2018', 'location': 'City of Toronto', 'price': '35.00', 'description': 'Hummel-Like Porcelain figurines , set of 6, mint condition'}, '1259656455': {'title': 'vintage Hummel like porcelain', 'img': '<img alt="vintage Hummel like porcelain" src="https://i.ebayimg.com/00/s/NjQwWDQ4MA==/z/8HcAAOSwlndZBNhB/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-hummel-like-porcelain/1259656455', 'details': '', 'date': '14/09/2018', 'location': 'City of Toronto', 'price': '25.00', 'description': 'vintage Hummel like porcelain figurine, 5" high, mint condition'}, '1340613666': {'title': 'Hummels - "Little Gardner"; "School Girl"; or "For Mother"', 'img': '<img alt=\'Hummels - "Little Gardner"; "School Girl"; or "For Mother"\' src="https://i.ebayimg.com/00/s/NTMzWDgwMA==/z/D~IAAOSwwz5arsuK/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummels-little-gardner-school-girl-or-for-mother/1340613666', 'details': '', 'date': '09/09/2018', 'location': 'City of Toronto', 'price': '50.00', 'description': 'Beautiful figurines. No chips or scratches. Complete with name tags attached. Excellent condition. Looking for $50.00 each, will accept reasonable offer'}, '1355433085': {'title': 'Hummel " Apple Tree Boy " Figurine', 'img': '<img alt=\'Hummel " Apple Tree Boy " Figurine\' src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/FFMAAOSwHf5a~GWV/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-apple-tree-boy-figurine/1355433085', 'details': '', 'date': '04/09/2018', 'location': 'City of Toronto', 'price': '50.00', 'description': 'For sale is a Hummel Figurine titled " Apple Tree Boy ". The base has a small chip that is barely noticeable,..the rest of this figurine is in perfect condition. It measures 6" tall. Older trade mark on bottom. Will ship if needed. Please visit my other items I have up for sale.'}, '419236774': {'title': 'Vintage Hummel "Happy Traveler" 109/0', 'img': '<img alt=\'Vintage Hummel "Happy Traveler" 109/0\' src="https://i.ebayimg.com/00/s/MTAwMFg3NTA=/$(KGrHqJ,!kwFBVKMfvwGBQbHRQrfH!~~48_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-hummel-happy-traveler-109-0/419236774', 'details': '', 'date': '01/09/2018', 'location': 'City of Toronto', 'price': '150.00', 'description': 'Pristine condition. TMK 3 (1960-1972), Sty-Bee. Retired in 1982. Price negotiable. After 5:00 p.m. and on weekends, call 416-825-3561.'}, '1380413234': {'title': 'vintage Hummel-like figurines', 'img': '<img alt="vintage Hummel-like figurines" src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/xt4AAOSwfbpbiFAi/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-hummel-like-figurines/1380413234', 'details': '', 'date': '30/08/2018', 'location': 'City of Toronto', 'price': '30.00', 'description': 'Vintage Hummel-like figurines\nMade in Japan - C7654\nBoy playing violin\nGirl playing drum\nexcellent condition'}, '1224890286': {'title': 'Hummel Plates, 3', 'img': '<img alt="Hummel Plates, 3" src="https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/PdQAAOSwa~BYVHVV/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-plates-3/1224890286', 'details': '', 'date': '26/08/2018', 'location': 'City of Toronto', 'price': '60.00', 'description': 'Price is for all 3. Can be purchased individually as well'}, '1224722568': {'title': 'Berta Hummel 1977 Limited Edition Christmas Plate', 'img': '<img alt="Berta Hummel 1977 Limited Edition Christmas Plate" src="https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/n9AAAOSwa~BYU4bb/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/berta-hummel-1977-limited-edition-christmas-plate/1224722568', 'details': '', 'date': '26/08/2018', 'location': 'City of Toronto', 'price': '140.00', 'description': 'Excellent condition, with original box and packaging, limited edition.'}, '1224660959': {'title': 'Hummel 1977 Plate - Apple Tree Boy', 'img': '<img alt="Hummel 1977 Plate - Apple Tree Boy" src="https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/T68AAOSwcUBYUyQz/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-1977-plate-apple-tree-boy/1224660959', 'details': '', 'date': '26/08/2018', 'location': 'City of Toronto', 'price': '150.00', 'description': 'No longer being made, vintage. In excellent condition. With original box and packaging.'}, '1379273218': {'title': 'Hummel Umbrella Boy and Girl porcelain dolls with soft body', 'img': '<img alt="Hummel Umbrella Boy and Girl porcelain dolls with soft body " src="https://i.ebayimg.com/00/s/MTIwMFgxNjAw/z/4hQAAOSwK6NbgfVr/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-umbrella-boy-and-girl-porcelain-dolls-with-soft-body/1379273218', 'details': '', 'date': '25/08/2018', 'location': 'City of Toronto', 'price': '100.00', 'description': 'Hummel Umbrella Boy and Girl porcelain dolls with soft body. Great condition dolls have been kept wrapped in storage. Have documents for boy doll but not girl.\nPrice is negotiable'}, '1314353570': {'title': 'Vintage Berta Hummel Christmas Collector Plates - Mint!!', 'img': '<img alt="Vintage Berta Hummel Christmas Collector Plates - Mint!!" src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/W60AAOSwFyhaEOEc/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-berta-hummel-christmas-collector-plates-mint/1314353570', 'details': '', 'date': '23/08/2018', 'location': 'City of Toronto', 'price': '15.00', 'description': '$15 each. These are limited edition Berta Hummel Collector Christmas plates made in Germany by Schmid Brothers. The set has annual Christmas plates from 1971 through 1989. Each plate has a unique year and a scene portraying the authentic works of Sister Berta Hummel. (see all photos). The scenes are repnoruced on the finest Bavarian porcelain. These plates are in mint condition and most are in their orinal box. The plates are 8" in diameter and are great for serving special dishes and desserts during the festive season. They can be given as a gift or collected for their beauty.'}, '1314346772': {'title': '1982 Hummel Christmas Ornament - New - Excellent Condition!', 'img': '<img alt="1982 Hummel Christmas Ornament - New - Excellent Condition!" src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/SWgAAOSwPAxaENid/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/1982-hummel-christmas-ornament-new-excellent-condition/1314346772', 'details': '', 'date': '23/08/2018', 'location': 'City of Toronto', 'price': '15.00', 'description': 'This is a 1982 Hummel first annual collectors\' Christmas ornament. It is new in its original box. There are 3 separate scenes on the ornament: Gift Bearers, Angel\'s Music and A Gift for Jesus. This ornament is from the authentic ARS edition and is like new condition. The ornament is 4" across and a circumference of 10".'}, '1378715810': {'title': 'Mats Hummels game used 3 colour path autograph card', 'img': '<img alt="Mats Hummels game used 3 colour path autograph card" src="https://i.ebayimg.com/00/s/MTYwMFgxMjAw/z/cOUAAOSwoYxbfvez/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/mats-hummels-game-used-3-colour-path-autograph-card/1378715810', 'details': '', 'date': '23/08/2018', 'location': 'City of Toronto', 'price': '65.00', 'description': 'This is a signed 3 colour patch autograph of Mats Hummels from the 2017 Immaculate collection. Please feel free to look at my other ads. Thanks for looking!'}, '1365444327': {'title': 'Collectibles Plate Collection', 'img': '<img alt="Collectibles Plate Collection" src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/FdQAAOSwh8NbMWWX/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/collectibles-plate-collection/1365444327', 'details': '', 'date': '22/08/2018', 'location': 'City of Toronto', 'price': '7.00', 'description': 'M.I. Hummel Plate Collection\n"Little Companions"\nAn edition limited to 14 full firing days.\nPlate no. YB 4571'}, '1378040238': {'title': 'Hummel Angel Figurine', 'img': '<img alt="Hummel Angel Figurine" src="https://i.ebayimg.com/00/s/MjQwWDMyMA==/z/WfoAAOSwO2lbey5i/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-angel-figurine/1378040238', 'details': '', 'date': '20/08/2018', 'location': 'City of Toronto', 'price': '15.00', 'description': 'Like new beautiful Hummel Angel Figurine.\nPraying before bedtime. Might be a nice shower gift.\nCollectible. Worth $100+'}, '1335229712': {'title': 'Hummel Apple Tree Girl', 'img': '<img alt="Hummel Apple Tree Girl" src="https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/zhMAAOSwIzFaj8J2/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-apple-tree-girl/1335229712', 'details': '', 'date': '13/08/2018', 'location': 'City of Toronto', 'price': '90.00', 'description': '4 inch figure. Full bee'}, '1374824000': {'title': 'Hummel special edition silver spoons', 'img': '<img alt="Hummel special edition silver spoons" src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/JQQAAOSws4lbaMC7/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-special-edition-silver-spoons/1374824000', 'details': '', 'date': '06/08/2018', 'location': 'City of Toronto', 'price': '25.00', 'description': 'Three spoons still in original boxes.\nBoy on phone.\nBoy reading book\nChild in hammock.\n1982 ARS special editions.\n$25.00 for all three.\nScarborough. location'}, '1361843722': {'title': 'Ceramic Figurine Erich Stauffer Hummel Style Girl Sewing', 'img': '<img alt="Ceramic Figurine Erich Stauffer Hummel Style Girl Sewing" src="https://i.ebayimg.com/00/s/ODAwWDYwMA==/z/Ns4AAOSwdm1bHWS6/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/ceramic-figurine-erich-stauffer-hummel-style-girl-sewing/1361843722', 'details': '', 'date': '05/08/2018', 'location': 'City of Toronto', 'price': '5.00', 'description': 'Vintage Ceramic Figurine Erich Stauffer Hummel Style Girl Sewing "Playing House"'}, '1361844209': {'title': '2PC Goebel Hummel Figurine "Little Music Makers"', 'img': '<img alt=\'2PC Goebel Hummel Figurine "Little Music Makers"\' src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/AEcAAOSwuHJbHWUi/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/2pc-goebel-hummel-figurine-little-music-makers/1361844209', 'details': '', 'date': '05/08/2018', 'location': 'City of Toronto', 'price': '20.00', 'description': '2 piece Goebel Hummel Figurine "Little Music Makers"'}, '1361848787': {'title': 'HUMMEL 1980 - SPRING DANCE - ANNIVERSARY PLATE - SECOND EDITION', 'img': '<img alt="HUMMEL 1980 - SPRING DANCE - ANNIVERSARY PLATE - SECOND EDITION" src="https://i.ebayimg.com/00/s/ODAwWDYwMA==/z/M9UAAOSwzzVbHWkE/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-1980-spring-dance-anniversary-plate-second-edition/1361848787', 'details': '', 'date': '05/08/2018', 'location': 'City of Toronto', 'price': '30.00', 'description': 'HUMMEL-1980-SPRING-DANCE-ANNIVERSARY-PLATE-SECOND-EDITION'}, '1156862038': {'title': 'Hummel Playmates, Discontinued', 'img': '<img alt="Hummel Playmates, Discontinued" src="https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/xXgAAOSw7n9XEnzf/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-playmates-discontinued/1156862038', 'details': '', 'date': '03/08/2018', 'location': 'City of Toronto', 'price': '150.00', 'description': '4 inches high by 3.5 inches wide. Discontinued. With the "V" mark on the bottom.....very old.'}, '1322284610': {'title': 'Vintage  Porcelain  Doll', 'img': '<img alt="Vintage  Porcelain  Doll" src="https://i.ebayimg.com/00/s/ODAwWDM4OA==/z/X5wAAOSw1JVaPBw3/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-porcelain-doll/1322284610', 'details': '', 'date': '30/07/2018', 'location': 'City of Toronto', 'price': '20.00', 'description': 'Rare Vintage 10" Tall Hand Painted Porcelain Bisque Gretel Doll\nThis doll is from the Hummel series of Hansel & Gretel Figurines\nLovely detailed hand painted face with minor paint loss on the lips. In original clothes which is in very good condition ,,,the waist apron has lost a bit of its elasticity but otherwise clothes is all original and in excellent condition.\nShe stands approx. 10" tall when standing up.\nShe can stand or sit and all her joints arms and legs are moveable.\nNo chips or breaks or imperfections overall in excellent condition.\nI believe she is Hummel inspired\nIf you can see the ad the item is available for pick up downtown Toronto. Please call or txt 416-816-4020 if interested'}}
+    return ad_dict if limit is None else (ad_dict, None)
 
 
 # In[4]:
 
 
-def connect_db():
-    db_url = os.getenv('DB_URL')
-    engine = create_engine(f'{db_url}')
-    #if not database_exists(engine.url):
-    #    create_database(engine.url)
-    #print(engine.url)
-    # create a configured "Session" class
-    Session = sessionmaker(bind=engine)
-
-    # create a Session
-    return Session()
-
+# Database models
 class Listing(Base):
     __tablename__ = 'listings'
     
@@ -217,10 +194,6 @@ class Listing(Base):
     price = Column(String)
     date_scraped = Column(DateTime, FetchedValue())
 
-
-# In[5]:
-
-
 class Subject(Base):
     __tablename__ = 'subjects'
     
@@ -230,10 +203,6 @@ class Subject(Base):
     id = Column(BigInteger, primary_key=True)
     name = Column(String)
     date_scraped = Column(DateTime, FetchedValue())
-
-
-# In[6]:
-
 
 class SubjectListing(Base):
     __tablename__ = 'subject_listings'
@@ -246,42 +215,41 @@ class SubjectListing(Base):
     listing_id = Column(BigInteger, primary_key=True)
 
 
-# In[7]:
+# In[112]:
 
 
-def get_subject_id(subject, sess):
-    '''Returns (id, stale), where id is the primary key for use in the subject_listings table,
-    and stale is True if the last query for this subject was a long time ago (> 1 day), otherwise False'''
-    result = sess.query(Subject).filter_by(name=subject).first()
-    if not result:
+def select_subject(subject, sess):
+    return sess.query(Subject).filter_by(name=subject).first()
+
+def update_date_scraped(subject, sess):
+    subject_entry = select_subject(subject, sess)
+    now = datetime.datetime.utcnow()
+    subject_entry.date_scraped = now
+    sess.merge(subject_entry)
+    sess.commit()
+    
+def probe_subject(subject, sess):
+    '''
+    Returns (id, ads_to_skip), where id is the primary key for use in the 
+    subject_listings table, and ads_to_skip is the list of ads already in the DB,
+    or None if the subject has been scraped recently (< 1 day)
+    '''
+    subject_entry = select_subject(subject, sess)
+    if not subject_entry:
         new_subject = Subject(subject)
         sess.add(new_subject)
         sess.commit()
         sess.refresh(new_subject)
-        stale = False
-        return (new_subject.id, stale)
+        return (new_subject.id, set())
     else:
-        time_since_last_scrape = datetime.datetime.utcnow() - result.date_scraped
+        now = datetime.datetime.utcnow()
+        time_since_last_scrape = now - subject_entry.date_scraped
         stale = time_since_last_scrape.days > 1
-        return (result.id, stale)
-
-
-# In[13]:
-
-
-sess = connect_db()
-
-
-# In[14]:
-
-
-subject_id, stale = get_subject_id('hummels', sess)
-if stale:
-    
-
-
-# In[12]:
-
+        if stale:
+            listings = sess.query(SubjectListing.listing_id)                 .join(Subject, Subject.id == SubjectListing.subject_id)                 .filter(Subject.name == subject)
+            return subject_entry.id, set([listing.listing_id for listing in listings])
+        else:
+            return subject_entry.id, None
 
 def write_ads_to_db(subject_id, ads, sess):  # Writes ads from given dictionary to given file
     listings = [Listing(id, **ad) for id, ad in ads.items()]
@@ -289,9 +257,67 @@ def write_ads_to_db(subject_id, ads, sess):  # Writes ads from given dictionary 
         sess.merge(listing)
         sess.merge(SubjectListing(subject_id, listing.id))
         sess.commit()
-        
-#print(hummel_ads)
-write_ads_to_db(subject_id, hummel_ads, sess)
+
+
+# In[ ]:
+
+
+def connect_db():
+    '''
+    Returns a db session
+    '''
+    db_url = os.getenv('DB_URL')
+    engine = create_engine(db_url)
+    Session = sessionmaker(bind=engine)
+    return Session()
+
+
+# In[ ]:
+
+
+def get_listings(subject):
+    '''
+    Returns a dataframe with all listings for a subject
+    '''
+    sess = connect_db()
+    subject_id, ads_to_skip = probe_subject(subject, sess)
+    print(subject_id, ads_to_skip)
+    
+    # Scrape unless it was done recently
+    if ads_to_skip is not None:
+        url = None
+        all_ads_scraped = False
+        while not all_ads_scraped:
+            ads, url = scrape(subject, ads_to_skip, limit=100, url=url)
+            all_ads_scraped = True if url is None else False
+            write_ads_to_db(subject_id, ads, sess)
+            for ad_id in ads:
+                ads_to_skip.add(ad_id)
+                
+        update_date_scraped(subject, sess)
+    
+    # This could be done with the ORM
+    query = f'''
+    select listing_id, title, description from (
+        select * from subjects
+            inner join subject_listings on subjects.id = subject_listings.subject_id where subjects.name = '{subject}'
+    ) as this_subject_listings
+        inner join listings on this_subject_listings.listing_id = listings.id;
+    '''
+    
+    return pd.read_sql(query, sess.get_bind(), index_col='listing_id')       
+
+
+# In[119]:
+
+
+get_listings('hummels')
+
+
+# In[117]:
+
+
+scrape('panasonic tcp50x5 plasma tv')
 
 
 # Reads in some listings
@@ -708,4 +734,10 @@ for brand, mult in popular_brands[:15]:
 #    preferred_spelling = max(set(spelling_cands), key=spelling_cands.count)
 #    preferred_spellings[word] = (preferred_spelling, n_occurrences)
 # preferred_spellings
+
+
+# In[32]:
+
+
+#hummel_ads = {'1202550115': {'title': 'Hummel Style Japanese Girl Chicken', 'img': '<img alt="Hummel Style Japanese Girl Chicken" src="https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/ySEAAOSwTA9X5tuP/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-style-japanese-girl-chicken/1202550115', 'details': '', 'date': '< 23 hours ago', 'location': 'City of Toronto', 'price': '-1.00', 'description': 'Hummel Style Japanese 5 x 4 inches no chips cracks or fleas'}, '1358609245': {'title': 'Hummel "Trumpet Boy"', 'img': '<img alt=\'Hummel "Trumpet Boy"\' src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/kJIAAOSw1xVbDIcB/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-trumpet-boy/1358609245', 'details': '', 'date': '20/09/2018', 'location': 'City of Toronto', 'price': '25.00', 'description': 'Early Goebel Hummel - Germany\n"Trumpet Boy" - #97\nStands 4 1/2" high'}, '1358607961': {'title': 'Hummel "Boy with Basket"', 'img': '<img alt=\'Hummel "Boy with Basket"\' src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/yloAAOSw8SpbDIXj/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-boy-with-basket/1358607961', 'details': '', 'date': '20/09/2018', 'location': 'City of Toronto', 'price': '25.00', 'description': 'Early Goebel Hummel - Germany\n"Village Boy" #51 3/0\nStands 4" high'}, '1260421734': {'title': 'hummel like figurines', 'img': '<img alt="hummel like figurines" src="https://i.ebayimg.com/00/s/NjQwWDQ4MA==/z/PNgAAOSw7GRZB~Te/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-like-figurines/1260421734', 'details': '', 'date': '18/09/2018', 'location': 'City of Toronto', 'price': '35.00', 'description': 'Hummel-Like Porcelain figurines , set of 6, mint condition'}, '1259656455': {'title': 'vintage Hummel like porcelain', 'img': '<img alt="vintage Hummel like porcelain" src="https://i.ebayimg.com/00/s/NjQwWDQ4MA==/z/8HcAAOSwlndZBNhB/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-hummel-like-porcelain/1259656455', 'details': '', 'date': '14/09/2018', 'location': 'City of Toronto', 'price': '25.00', 'description': 'vintage Hummel like porcelain figurine, 5" high, mint condition'}, '1340613666': {'title': 'Hummels - "Little Gardner"; "School Girl"; or "For Mother"', 'img': '<img alt=\'Hummels - "Little Gardner"; "School Girl"; or "For Mother"\' src="https://i.ebayimg.com/00/s/NTMzWDgwMA==/z/D~IAAOSwwz5arsuK/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummels-little-gardner-school-girl-or-for-mother/1340613666', 'details': '', 'date': '09/09/2018', 'location': 'City of Toronto', 'price': '50.00', 'description': 'Beautiful figurines. No chips or scratches. Complete with name tags attached. Excellent condition. Looking for $50.00 each, will accept reasonable offer'}, '1355433085': {'title': 'Hummel " Apple Tree Boy " Figurine', 'img': '<img alt=\'Hummel " Apple Tree Boy " Figurine\' src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/FFMAAOSwHf5a~GWV/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-apple-tree-boy-figurine/1355433085', 'details': '', 'date': '04/09/2018', 'location': 'City of Toronto', 'price': '50.00', 'description': 'For sale is a Hummel Figurine titled " Apple Tree Boy ". The base has a small chip that is barely noticeable,..the rest of this figurine is in perfect condition. It measures 6" tall. Older trade mark on bottom. Will ship if needed. Please visit my other items I have up for sale.'}, '419236774': {'title': 'Vintage Hummel "Happy Traveler" 109/0', 'img': '<img alt=\'Vintage Hummel "Happy Traveler" 109/0\' src="https://i.ebayimg.com/00/s/MTAwMFg3NTA=/$(KGrHqJ,!kwFBVKMfvwGBQbHRQrfH!~~48_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-hummel-happy-traveler-109-0/419236774', 'details': '', 'date': '01/09/2018', 'location': 'City of Toronto', 'price': '150.00', 'description': 'Pristine condition. TMK 3 (1960-1972), Sty-Bee. Retired in 1982. Price negotiable. After 5:00 p.m. and on weekends, call 416-825-3561.'}, '1380413234': {'title': 'vintage Hummel-like figurines', 'img': '<img alt="vintage Hummel-like figurines" src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/xt4AAOSwfbpbiFAi/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-hummel-like-figurines/1380413234', 'details': '', 'date': '30/08/2018', 'location': 'City of Toronto', 'price': '30.00', 'description': 'Vintage Hummel-like figurines\nMade in Japan - C7654\nBoy playing violin\nGirl playing drum\nexcellent condition'}, '1224890286': {'title': 'Hummel Plates, 3', 'img': '<img alt="Hummel Plates, 3" src="https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/PdQAAOSwa~BYVHVV/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-plates-3/1224890286', 'details': '', 'date': '26/08/2018', 'location': 'City of Toronto', 'price': '60.00', 'description': 'Price is for all 3. Can be purchased individually as well'}, '1224722568': {'title': 'Berta Hummel 1977 Limited Edition Christmas Plate', 'img': '<img alt="Berta Hummel 1977 Limited Edition Christmas Plate" src="https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/n9AAAOSwa~BYU4bb/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/berta-hummel-1977-limited-edition-christmas-plate/1224722568', 'details': '', 'date': '26/08/2018', 'location': 'City of Toronto', 'price': '140.00', 'description': 'Excellent condition, with original box and packaging, limited edition.'}, '1224660959': {'title': 'Hummel 1977 Plate - Apple Tree Boy', 'img': '<img alt="Hummel 1977 Plate - Apple Tree Boy" src="https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/T68AAOSwcUBYUyQz/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-1977-plate-apple-tree-boy/1224660959', 'details': '', 'date': '26/08/2018', 'location': 'City of Toronto', 'price': '150.00', 'description': 'No longer being made, vintage. In excellent condition. With original box and packaging.'}, '1379273218': {'title': 'Hummel Umbrella Boy and Girl porcelain dolls with soft body', 'img': '<img alt="Hummel Umbrella Boy and Girl porcelain dolls with soft body " src="https://i.ebayimg.com/00/s/MTIwMFgxNjAw/z/4hQAAOSwK6NbgfVr/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-umbrella-boy-and-girl-porcelain-dolls-with-soft-body/1379273218', 'details': '', 'date': '25/08/2018', 'location': 'City of Toronto', 'price': '100.00', 'description': 'Hummel Umbrella Boy and Girl porcelain dolls with soft body. Great condition dolls have been kept wrapped in storage. Have documents for boy doll but not girl.\nPrice is negotiable'}, '1314353570': {'title': 'Vintage Berta Hummel Christmas Collector Plates - Mint!!', 'img': '<img alt="Vintage Berta Hummel Christmas Collector Plates - Mint!!" src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/W60AAOSwFyhaEOEc/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-berta-hummel-christmas-collector-plates-mint/1314353570', 'details': '', 'date': '23/08/2018', 'location': 'City of Toronto', 'price': '15.00', 'description': '$15 each. These are limited edition Berta Hummel Collector Christmas plates made in Germany by Schmid Brothers. The set has annual Christmas plates from 1971 through 1989. Each plate has a unique year and a scene portraying the authentic works of Sister Berta Hummel. (see all photos). The scenes are repnoruced on the finest Bavarian porcelain. These plates are in mint condition and most are in their orinal box. The plates are 8" in diameter and are great for serving special dishes and desserts during the festive season. They can be given as a gift or collected for their beauty.'}, '1314346772': {'title': '1982 Hummel Christmas Ornament - New - Excellent Condition!', 'img': '<img alt="1982 Hummel Christmas Ornament - New - Excellent Condition!" src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/SWgAAOSwPAxaENid/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/1982-hummel-christmas-ornament-new-excellent-condition/1314346772', 'details': '', 'date': '23/08/2018', 'location': 'City of Toronto', 'price': '15.00', 'description': 'This is a 1982 Hummel first annual collectors\' Christmas ornament. It is new in its original box. There are 3 separate scenes on the ornament: Gift Bearers, Angel\'s Music and A Gift for Jesus. This ornament is from the authentic ARS edition and is like new condition. The ornament is 4" across and a circumference of 10".'}, '1378715810': {'title': 'Mats Hummels game used 3 colour path autograph card', 'img': '<img alt="Mats Hummels game used 3 colour path autograph card" src="https://i.ebayimg.com/00/s/MTYwMFgxMjAw/z/cOUAAOSwoYxbfvez/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/mats-hummels-game-used-3-colour-path-autograph-card/1378715810', 'details': '', 'date': '23/08/2018', 'location': 'City of Toronto', 'price': '65.00', 'description': 'This is a signed 3 colour patch autograph of Mats Hummels from the 2017 Immaculate collection. Please feel free to look at my other ads. Thanks for looking!'}, '1365444327': {'title': 'Collectibles Plate Collection', 'img': '<img alt="Collectibles Plate Collection" src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/FdQAAOSwh8NbMWWX/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/collectibles-plate-collection/1365444327', 'details': '', 'date': '22/08/2018', 'location': 'City of Toronto', 'price': '7.00', 'description': 'M.I. Hummel Plate Collection\n"Little Companions"\nAn edition limited to 14 full firing days.\nPlate no. YB 4571'}, '1378040238': {'title': 'Hummel Angel Figurine', 'img': '<img alt="Hummel Angel Figurine" src="https://i.ebayimg.com/00/s/MjQwWDMyMA==/z/WfoAAOSwO2lbey5i/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-angel-figurine/1378040238', 'details': '', 'date': '20/08/2018', 'location': 'City of Toronto', 'price': '15.00', 'description': 'Like new beautiful Hummel Angel Figurine.\nPraying before bedtime. Might be a nice shower gift.\nCollectible. Worth $100+'}, '1335229712': {'title': 'Hummel Apple Tree Girl', 'img': '<img alt="Hummel Apple Tree Girl" src="https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/zhMAAOSwIzFaj8J2/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-apple-tree-girl/1335229712', 'details': '', 'date': '13/08/2018', 'location': 'City of Toronto', 'price': '90.00', 'description': '4 inch figure. Full bee'}, '1374824000': {'title': 'Hummel special edition silver spoons', 'img': '<img alt="Hummel special edition silver spoons" src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/JQQAAOSws4lbaMC7/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-special-edition-silver-spoons/1374824000', 'details': '', 'date': '06/08/2018', 'location': 'City of Toronto', 'price': '25.00', 'description': 'Three spoons still in original boxes.\nBoy on phone.\nBoy reading book\nChild in hammock.\n1982 ARS special editions.\n$25.00 for all three.\nScarborough. location'}, '1361843722': {'title': 'Ceramic Figurine Erich Stauffer Hummel Style Girl Sewing', 'img': '<img alt="Ceramic Figurine Erich Stauffer Hummel Style Girl Sewing" src="https://i.ebayimg.com/00/s/ODAwWDYwMA==/z/Ns4AAOSwdm1bHWS6/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/ceramic-figurine-erich-stauffer-hummel-style-girl-sewing/1361843722', 'details': '', 'date': '05/08/2018', 'location': 'City of Toronto', 'price': '5.00', 'description': 'Vintage Ceramic Figurine Erich Stauffer Hummel Style Girl Sewing "Playing House"'}, '1361844209': {'title': '2PC Goebel Hummel Figurine "Little Music Makers"', 'img': '<img alt=\'2PC Goebel Hummel Figurine "Little Music Makers"\' src="https://i.ebayimg.com/00/s/NjAwWDgwMA==/z/AEcAAOSwuHJbHWUi/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/2pc-goebel-hummel-figurine-little-music-makers/1361844209', 'details': '', 'date': '05/08/2018', 'location': 'City of Toronto', 'price': '20.00', 'description': '2 piece Goebel Hummel Figurine "Little Music Makers"'}, '1361848787': {'title': 'HUMMEL 1980 - SPRING DANCE - ANNIVERSARY PLATE - SECOND EDITION', 'img': '<img alt="HUMMEL 1980 - SPRING DANCE - ANNIVERSARY PLATE - SECOND EDITION" src="https://i.ebayimg.com/00/s/ODAwWDYwMA==/z/M9UAAOSwzzVbHWkE/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-1980-spring-dance-anniversary-plate-second-edition/1361848787', 'details': '', 'date': '05/08/2018', 'location': 'City of Toronto', 'price': '30.00', 'description': 'HUMMEL-1980-SPRING-DANCE-ANNIVERSARY-PLATE-SECOND-EDITION'}, '1156862038': {'title': 'Hummel Playmates, Discontinued', 'img': '<img alt="Hummel Playmates, Discontinued" src="https://i.ebayimg.com/00/s/ODAwWDQ1MA==/z/xXgAAOSw7n9XEnzf/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/hummel-playmates-discontinued/1156862038', 'details': '', 'date': '03/08/2018', 'location': 'City of Toronto', 'price': '150.00', 'description': '4 inches high by 3.5 inches wide. Discontinued. With the "V" mark on the bottom.....very old.'}, '1322284610': {'title': 'Vintage  Porcelain  Doll', 'img': '<img alt="Vintage  Porcelain  Doll" src="https://i.ebayimg.com/00/s/ODAwWDM4OA==/z/X5wAAOSw1JVaPBw3/$_35.JPG"/>', 'url': 'http://www.kijiji.ca/v-art-collectibles/city-of-toronto/vintage-porcelain-doll/1322284610', 'details': '', 'date': '30/07/2018', 'location': 'City of Toronto', 'price': '20.00', 'description': 'Rare Vintage 10" Tall Hand Painted Porcelain Bisque Gretel Doll\nThis doll is from the Hummel series of Hansel & Gretel Figurines\nLovely detailed hand painted face with minor paint loss on the lips. In original clothes which is in very good condition ,,,the waist apron has lost a bit of its elasticity but otherwise clothes is all original and in excellent condition.\nShe stands approx. 10" tall when standing up.\nShe can stand or sit and all her joints arms and legs are moveable.\nNo chips or breaks or imperfections overall in excellent condition.\nI believe she is Hummel inspired\nIf you can see the ad the item is available for pick up downtown Toronto. Please call or txt 416-816-4020 if interested'}}
 
