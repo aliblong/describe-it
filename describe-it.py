@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[62]:
+# In[1]:
 
 
 import os
@@ -32,143 +32,7 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
 
-# In[1]:
-
-
-# Derived from https://github.com/CRutkowski/Kijiji-Scraper
-def parse_ad_summary(html):
-    '''
-    Parses several fields of a listing summary (except the description, which is truncated),
-    then returns a dict of several these fields
-    '''
-    ad_info = {}
-    
-    try:
-        ad_info['title'] = html.find('a', {'class': 'title'}).text.strip()
-    except:
-        logging.error('Unable to parse Title data.')
-
-    try:
-        ad_info['img'] = str(html.find('img'))
-    except:
-        logging.error('Unable to parse Image data')
-
-    try:
-        ad_info['url'] = 'http://www.kijiji.ca' + html.get('data-vip-url')
-    except:
-        logging.error('Unable to parse URL data.')
-
-    try:
-        ad_info['details'] = html.find('div', {'class': 'details'}).text.strip()
-    except:
-        logging.error('Unable to parse Details data.')
-
-    try:
-        ad_info['date'] = html.find('span', {'class': 'date-posted'}).text.strip()
-    except:
-        logging.error('Unable to parse Date data.')
-
-    # The location field is affixed with the date for some reason
-    try:
-        location = html.find('div', {'class': 'location'}).text.strip()
-        location = location.replace(ad_info['date'], '')
-        ad_info['location'] = location
-    except:
-        logging.error('Unable to parse Location data.')
-
-    # In addition to normal prices, there can be 'Free' ($0), 'Please Contact' ($-1),
-    # some other value ($-2), or empty ($-3)
-    try:
-        price = html.find('div', {'class': 'price'}).text.strip()
-        if price[0] == '$':
-            price = price[1:]
-        elif price == 'Please Contact':
-            price = '-1.00'
-        elif price == 'Free':
-            price = '0'
-        else:
-            price = '-2.00'
-        ad_info['price'] = price
-    except:
-        logging.error('Unable to parse Price data.')
-        ad_info['price'] = '-3.00'
-
-    return ad_info
-
-def parse_ad_page(url):
-    '''Parses the description from an ad page'''
-    try:
-        page = requests.get(url)
-    except:
-        print('[Error] Unable to load ' + url)
-        return ''
-    
-    soup = BeautifulSoup(page.content, 'html.parser')
-    
-    try:
-        return soup.find('div', {'itemprop': 'description'}).get_text()
-    except:
-        logging.error('Unable to parse ad description.')
-
-def scrape(subject, existing_ad_ids = None, limit = None, url = None):
-    '''
-    Args are a search string for some subject, a list of existing ad IDs to skip,
-    a limit to the number of results to return, and a url from which to start
-    (in case, for example, a previous scrape was halted and is now being resumed).
-    Returns (ads, all_ads_scraped); all_ads_scraped is whether or not an imposed limit was reached
-    '''
-    # Initialize variables for loop
-    ad_dict = {}
-    # Shallow copy for now
-    ad_ids_to_skip = existing_ad_ids if existing_ad_ids is not None else set()
-
-    if url is None: url =         f'https://www.kijiji.ca/b-city-of-toronto/{subject}/k0l1700273?ll=43.650843,-79.377573&dc=true'
-
-    ads_parsed = 0
-    
-    while url:
-
-        try:
-            page = requests.get(url)
-        except:
-            logger.error(f'[Error] Unable to load {url}')
-            return
-
-        soup = BeautifulSoup(page.content, 'html.parser')
-
-        ads = soup.find_all('div', {'class': 'regular-ad'})
-        
-        # Skip third-party ads; these third parties are typically small retailers
-        third_party_ads = soup.find_all('div', {'class': 'third-party'})
-        for ad in third_party_ads:
-            ad_ids_to_skip.add(int(ad['data-ad-id']))
-
-        # Parse ads until the limit is reached
-        for ad in kijiji_ads:
-            title = ad.find('a', {'class': 'title'}).text.strip()
-            ad_id = int(ad['data-ad-id'])
-            
-            if ad_id not in ad_ids_to_skip:
-                logging.info(f'New ad found! Ad id: {ad_id}')
-                ad_info = parse_ad_summary(ad)
-                ad_url = ad_info['url']
-                ad_info['description'] = parse_ad_page(ad_url)
-                ad_dict[ad_id] = ad_info
-                if limit is not None:
-                    ads_parsed += 1
-                    if ads_parsed >= limit: return (ad_dict, url)
-            else:
-                logging.debug('Skip ad')
-                
-        url = soup.find('a', {'title' : 'Next'})
-        if url:
-            url_path = url['href']
-            url = f'https://www.kijiji.ca{url_path}'
-
-    return ad_dict if limit is None else (ad_dict, None)
-
-
-# In[4]:
+# In[3]:
 
 
 # Database models
@@ -202,7 +66,7 @@ class Subject(Base):
     
     id = Column(BigInteger, primary_key=True)
     name = Column(String)
-    date_scraped = Column(DateTime, FetchedValue())
+    date_last_scraped = Column(DateTime, FetchedValue())
 
 class SubjectListing(Base):
     __tablename__ = 'subject_listings'
@@ -215,7 +79,153 @@ class SubjectListing(Base):
     listing_id = Column(BigInteger, primary_key=True)
 
 
-# In[112]:
+# In[26]:
+
+
+# Derived from https://github.com/CRutkowski/Kijiji-Scraper
+def parse_ad_summary(html):
+    '''
+    Parses several fields of a listing summary (except the description, which is truncated),
+    then returns a dict of several these fields
+    '''
+    ad_info = {}
+    
+    try:
+        ad_info['title'] = html.find('a', {'class': 'title'}).text.strip()
+    except:
+        logging.error('Unable to parse Title data.')
+
+    try:
+        ad_info['img'] = str(html.find('img'))
+    except:
+        logging.error('Unable to parse Image data')
+
+    try:
+        ad_info['url'] = 'http://www.kijiji.ca' + html.get('data-vip-url')
+    except:
+        logging.error('Unable to parse URL data.')
+
+    try:
+        ad_info['details'] = html.find('div', {'class': 'details'}).text.strip()
+    except:
+        logging.error('Unable to parse Details data.')
+
+    try:
+        date = html.find('span', {'class': 'date-posted'}).text.strip()
+        # If the ad is less than 24h old, it's displayed as '< some amount of time'
+        if date[0] == '<':
+            print(datetime.datetime.today())
+            date = datetime.datetime.today()
+    except:
+        logging.error('Unable to parse Date data.')
+
+    # The location field is affixed with the date for some reason
+    try:
+        location = html.find('div', {'class': 'location'}).text.strip()
+        location = location.replace(ad_info['date'], '')
+        ad_info['location'] = location
+    except:
+        logging.error('Unable to parse Location data.')
+
+    # In addition to normal prices, there can be 'Free' ($0), 'Please Contact' ($-1),
+    # some other value ($-2), or empty ($-3)
+    try:
+        price = html.find('div', {'class': 'price'}).text.strip()
+        if price[0] == '$':
+            price = price[1:]
+        elif price == 'Please Contact':
+            price = '-1.00'
+        elif price == 'Free':
+            price = '0'
+        else:
+            price = '-2.00'
+        ad_info['price'] = price
+    except:
+        logging.error('Unable to parse Price data.')
+        ad_info['price'] = '-3.00'
+
+    return ad_info 
+
+def parse_ad_page(url):
+    '''Parses the description from an ad page'''
+    try:
+        page = requests.get(url)
+    except:
+        print('[Error] Unable to load ' + url)
+        return ''
+    
+    soup = BeautifulSoup(page.content, 'html.parser')
+    
+    try:
+        return soup.find('div', {'itemprop': 'description'}).get_text()
+    except:
+        logging.error('Unable to parse ad description.')
+
+def scrape(subject, existing_ad_ids = None, limit = None, url = None):
+    '''
+    Args are a search string for some subject, a list of existing ad IDs to skip,
+    a limit to the number of results to return, and a url from which to start
+    (in case, for example, a previous scrape was halted and is now being resumed).
+    Returns (ads, already_scraped_ad_ids, all_ads_scraped); all_ads_scraped is whether
+    or not an imposed limit was reached.
+    '''
+    # Initialize variables for loop
+    ad_dict = {}
+    # Shallow copy for now
+    ad_ids_to_skip = existing_ad_ids if existing_ad_ids is not None else set()
+
+    if url is None: url =         f'https://www.kijiji.ca/b-city-of-toronto/{subject}/k0l1700273?ll=43.650843,-79.377573&dc=true'
+
+    ads_parsed = 0
+    
+    already_scraped_ad_ids = set()
+    
+    while url:
+
+        try:
+            page = requests.get(url)
+        except:
+            logger.error(f'[Error] Unable to load {url}')
+            return
+
+        soup = BeautifulSoup(page.content, 'html.parser')
+
+        ads = soup.find_all('div', {'class': 'regular-ad'})
+        
+        # Skip third-party ads; these third parties are typically small retailers
+        third_party_ads = soup.find_all('div', {'class': 'third-party'})
+        third_party_ad_ids = set([int(ad['data-ad-id']) for ad in third_party_ads])
+
+        # Parse ads until the limit is reached
+        for ad in ads:
+            title = ad.find('a', {'class': 'title'}).text.strip()
+            ad_id = int(ad['data-ad-id'])
+            
+            if ad_id not in third_party_ads:
+                if ad_id not in ad_ids_to_skip:
+                    logging.info(f'New ad found! Ad id: {ad_id}')
+                    ad_info = parse_ad_summary(ad)
+                    ad_url = ad_info['url']
+                    ad_info['description'] = parse_ad_page(ad_url)
+                    ad_dict[ad_id] = ad_info
+                    if limit is not None:
+                        ads_parsed += 1
+                        if ads_parsed >= limit: return ad_dict, already_scraped_ad_ids, url
+                else:
+                    logging.debug('Skip already-scraped ad')
+                    already_scraped_ad_ids.add(ad_id)
+            else:
+                logging.debug('Skip third-party ad')
+                
+        url = soup.find('a', {'title' : 'Next'})
+        if url:
+            url_path = url['href']
+            url = f'https://www.kijiji.ca{url_path}'
+
+    return (ad_dict, already_scraped_ad_ids) if limit is None else (ad_dict, already_scraped_ad_ids, None)
+
+
+# In[32]:
 
 
 def select_subject(subject, sess):
@@ -224,7 +234,7 @@ def select_subject(subject, sess):
 def update_date_scraped(subject, sess):
     subject_entry = select_subject(subject, sess)
     now = datetime.datetime.utcnow()
-    subject_entry.date_scraped = now
+    subject_entry.date_last_scraped = now
     sess.merge(subject_entry)
     sess.commit()
     
@@ -240,16 +250,18 @@ def probe_subject(subject, sess):
         sess.add(new_subject)
         sess.commit()
         sess.refresh(new_subject)
-        return (new_subject.id, set())
+        subject_id = new_subject.id
     else:
+        subject_id = subject_entry.id
         now = datetime.datetime.utcnow()
-        time_since_last_scrape = now - subject_entry.date_scraped
-        stale = time_since_last_scrape.days > 1
-        if stale:
-            listings = sess.query(SubjectListing.listing_id)                 .join(Subject, Subject.id == SubjectListing.subject_id)                 .filter(Subject.name == subject)
-            return subject_entry.id, set([listing.listing_id for listing in listings])
-        else:
-            return subject_entry.id, None
+        time_since_last_scrape = now - subject_entry.date_last_scraped
+        freshly_scraped = time_since_last_scrape.days < 1
+        if freshly_scraped:
+            return subject_id, None
+    
+    listings = sess.query(Listing.id)
+    # each returned element from a single-column select is a single-element tuple
+    return subject_id, set([listing[0] for listing in listings])
 
 def write_ads_to_db(subject_id, ads, sess):  # Writes ads from given dictionary to given file
     listings = [Listing(id, **ad) for id, ad in ads.items()]
@@ -258,8 +270,14 @@ def write_ads_to_db(subject_id, ads, sess):  # Writes ads from given dictionary 
         sess.merge(SubjectListing(subject_id, listing.id))
         sess.commit()
 
+def write_subject_listing_relations_for_already_scraped_ads_to_db(subject_id, already_scraped_ad_ids, sess):
+    for already_scraped_ad_id in already_scraped_ad_ids:
+        sess.merge(SubjectListing(subject_id, already_scraped_ad_id))
+        sess.commit()
+        
 
-# In[ ]:
+
+# In[7]:
 
 
 def connect_db():
@@ -272,25 +290,27 @@ def connect_db():
     return Session()
 
 
-# In[ ]:
+# In[28]:
 
 
 def get_listings(subject):
     '''
     Returns a dataframe with all listings for a subject
     '''
+    subject = subject.lower()
     sess = connect_db()
     subject_id, ads_to_skip = probe_subject(subject, sess)
-    print(subject_id, ads_to_skip)
     
     # Scrape unless it was done recently
     if ads_to_skip is not None:
         url = None
         all_ads_scraped = False
         while not all_ads_scraped:
-            ads, url = scrape(subject, ads_to_skip, limit=100, url=url)
+            ads, already_scraped_ad_ids, url = scrape(subject, ads_to_skip, limit=100, url=url)
             all_ads_scraped = True if url is None else False
             write_ads_to_db(subject_id, ads, sess)
+            write_subject_listing_relations_for_already_scraped_ads_to_db(
+                subject_id, already_scraped_ad_ids, sess)
             for ad_id in ads:
                 ads_to_skip.add(ad_id)
                 
@@ -308,7 +328,7 @@ def get_listings(subject):
     return pd.read_sql(query, sess.get_bind(), index_col='listing_id')       
 
 
-# In[119]:
+# In[33]:
 
 
 get_listings('hummels')

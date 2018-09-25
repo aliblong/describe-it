@@ -11773,7 +11773,7 @@ div#notebook {
 
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[62]:</div>
+<div class="prompt input_prompt">In&nbsp;[1]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
@@ -11814,7 +11814,7 @@ div#notebook {
 
 <div class="output_area">
 
-<div class="prompt output_prompt">Out[62]:</div>
+<div class="prompt output_prompt">Out[1]:</div>
 
 
 
@@ -11831,151 +11831,7 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[1]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># Derived from https://github.com/CRutkowski/Kijiji-Scraper</span>
-<span class="k">def</span> <span class="nf">parse_ad_summary</span><span class="p">(</span><span class="n">html</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    Parses several fields of a listing summary (except the description, which is truncated),</span>
-<span class="sd">    then returns a dict of several these fields</span>
-<span class="sd">    &#39;&#39;&#39;</span>
-    <span class="n">ad_info</span> <span class="o">=</span> <span class="p">{}</span>
-    
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;title&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-    <span class="k">except</span><span class="p">:</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Title data.&#39;</span><span class="p">)</span>
-
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;img&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;img&#39;</span><span class="p">))</span>
-    <span class="k">except</span><span class="p">:</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Image data&#39;</span><span class="p">)</span>
-
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;http://www.kijiji.ca&#39;</span> <span class="o">+</span> <span class="n">html</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;data-vip-url&#39;</span><span class="p">)</span>
-    <span class="k">except</span><span class="p">:</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse URL data.&#39;</span><span class="p">)</span>
-
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;details&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;details&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-    <span class="k">except</span><span class="p">:</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Details data.&#39;</span><span class="p">)</span>
-
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;span&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;date-posted&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-    <span class="k">except</span><span class="p">:</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Date data.&#39;</span><span class="p">)</span>
-
-    <span class="c1"># The location field is affixed with the date for some reason</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">location</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;location&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-        <span class="n">location</span> <span class="o">=</span> <span class="n">location</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">],</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
-        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">location</span>
-    <span class="k">except</span><span class="p">:</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Location data.&#39;</span><span class="p">)</span>
-
-    <span class="c1"># In addition to normal prices, there can be &#39;Free&#39; ($0), &#39;Please Contact&#39; ($-1),</span>
-    <span class="c1"># some other value ($-2), or empty ($-3)</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">price</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;price&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">price</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;$&#39;</span><span class="p">:</span>
-            <span class="n">price</span> <span class="o">=</span> <span class="n">price</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
-        <span class="k">elif</span> <span class="n">price</span> <span class="o">==</span> <span class="s1">&#39;Please Contact&#39;</span><span class="p">:</span>
-            <span class="n">price</span> <span class="o">=</span> <span class="s1">&#39;-1.00&#39;</span>
-        <span class="k">elif</span> <span class="n">price</span> <span class="o">==</span> <span class="s1">&#39;Free&#39;</span><span class="p">:</span>
-            <span class="n">price</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">price</span> <span class="o">=</span> <span class="s1">&#39;-2.00&#39;</span>
-        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;price&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">price</span>
-    <span class="k">except</span><span class="p">:</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Price data.&#39;</span><span class="p">)</span>
-        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;price&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;-3.00&#39;</span>
-
-    <span class="k">return</span> <span class="n">ad_info</span>
-
-<span class="k">def</span> <span class="nf">parse_ad_page</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;Parses the description from an ad page&#39;&#39;&#39;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">page</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-    <span class="k">except</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;[Error] Unable to load &#39;</span> <span class="o">+</span> <span class="n">url</span><span class="p">)</span>
-        <span class="k">return</span> <span class="s1">&#39;&#39;</span>
-    
-    <span class="n">soup</span> <span class="o">=</span> <span class="n">BeautifulSoup</span><span class="p">(</span><span class="n">page</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="s1">&#39;html.parser&#39;</span><span class="p">)</span>
-    
-    <span class="k">try</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">soup</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;itemprop&#39;</span><span class="p">:</span> <span class="s1">&#39;description&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">get_text</span><span class="p">()</span>
-    <span class="k">except</span><span class="p">:</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse ad description.&#39;</span><span class="p">)</span>
-
-<span class="k">def</span> <span class="nf">scrape</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">existing_ad_ids</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">limit</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">url</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    Args are a search string for some subject, a list of existing ad IDs to skip,</span>
-<span class="sd">    a limit to the number of results to return, and a url from which to start</span>
-<span class="sd">    (in case, for example, a previous scrape was halted and is now being resumed).</span>
-<span class="sd">    Returns (ads, all_ads_scraped); all_ads_scraped is whether or not an imposed limit was reached</span>
-<span class="sd">    &#39;&#39;&#39;</span>
-    <span class="c1"># Initialize variables for loop</span>
-    <span class="n">ad_dict</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="c1"># Shallow copy for now</span>
-    <span class="n">ad_ids_to_skip</span> <span class="o">=</span> <span class="n">existing_ad_ids</span> <span class="k">if</span> <span class="n">existing_ad_ids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">set</span><span class="p">()</span>
-
-    <span class="k">if</span> <span class="n">url</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span> <span class="n">url</span> <span class="o">=</span> \
-        <span class="n">f</span><span class="s1">&#39;https://www.kijiji.ca/b-city-of-toronto/</span><span class="si">{subject}</span><span class="s1">/k0l1700273?ll=43.650843,-79.377573&amp;dc=true&#39;</span>
-
-    <span class="n">ads_parsed</span> <span class="o">=</span> <span class="mi">0</span>
-    
-    <span class="k">while</span> <span class="n">url</span><span class="p">:</span>
-
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">page</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-        <span class="k">except</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;[Error] Unable to load </span><span class="si">{url}</span><span class="s1">&#39;</span><span class="p">)</span>
-            <span class="k">return</span>
-
-        <span class="n">soup</span> <span class="o">=</span> <span class="n">BeautifulSoup</span><span class="p">(</span><span class="n">page</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="s1">&#39;html.parser&#39;</span><span class="p">)</span>
-
-        <span class="n">ads</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;regular-ad&#39;</span><span class="p">})</span>
-        
-        <span class="c1"># Skip third-party ads; these third parties are typically small retailers</span>
-        <span class="n">third_party_ads</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;third-party&#39;</span><span class="p">})</span>
-        <span class="k">for</span> <span class="n">ad</span> <span class="ow">in</span> <span class="n">third_party_ads</span><span class="p">:</span>
-            <span class="n">ad_ids_to_skip</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ad</span><span class="p">[</span><span class="s1">&#39;data-ad-id&#39;</span><span class="p">]))</span>
-
-        <span class="c1"># Parse ads until the limit is reached</span>
-        <span class="k">for</span> <span class="n">ad</span> <span class="ow">in</span> <span class="n">kijiji_ads</span><span class="p">:</span>
-            <span class="n">title</span> <span class="o">=</span> <span class="n">ad</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;title&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-            <span class="n">ad_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ad</span><span class="p">[</span><span class="s1">&#39;data-ad-id&#39;</span><span class="p">])</span>
-            
-            <span class="k">if</span> <span class="n">ad_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ad_ids_to_skip</span><span class="p">:</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;New ad found! Ad id: </span><span class="si">{ad_id}</span><span class="s1">&#39;</span><span class="p">)</span>
-                <span class="n">ad_info</span> <span class="o">=</span> <span class="n">parse_ad_summary</span><span class="p">(</span><span class="n">ad</span><span class="p">)</span>
-                <span class="n">ad_url</span> <span class="o">=</span> <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span>
-                <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">parse_ad_page</span><span class="p">(</span><span class="n">ad_url</span><span class="p">)</span>
-                <span class="n">ad_dict</span><span class="p">[</span><span class="n">ad_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">ad_info</span>
-                <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">ads_parsed</span> <span class="o">+=</span> <span class="mi">1</span>
-                    <span class="k">if</span> <span class="n">ads_parsed</span> <span class="o">&gt;=</span> <span class="n">limit</span><span class="p">:</span> <span class="k">return</span> <span class="p">(</span><span class="n">ad_dict</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Skip ad&#39;</span><span class="p">)</span>
-                
-        <span class="n">url</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span> <span class="p">:</span> <span class="s1">&#39;Next&#39;</span><span class="p">})</span>
-        <span class="k">if</span> <span class="n">url</span><span class="p">:</span>
-            <span class="n">url_path</span> <span class="o">=</span> <span class="n">url</span><span class="p">[</span><span class="s1">&#39;href&#39;</span><span class="p">]</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;https://www.kijiji.ca</span><span class="si">{url_path}</span><span class="s1">&#39;</span>
-
-    <span class="k">return</span> <span class="n">ad_dict</span> <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span><span class="n">ad_dict</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[4]:</div>
+<div class="prompt input_prompt">In&nbsp;[3]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># Database models</span>
@@ -12009,7 +11865,7 @@ div#notebook {
     
     <span class="nb">id</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">BigInteger</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">name</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">)</span>
-    <span class="n">date_scraped</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">DateTime</span><span class="p">,</span> <span class="n">FetchedValue</span><span class="p">())</span>
+    <span class="n">date_last_scraped</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">DateTime</span><span class="p">,</span> <span class="n">FetchedValue</span><span class="p">())</span>
 
 <span class="k">class</span> <span class="nc">SubjectListing</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;subject_listings&#39;</span>
@@ -12029,7 +11885,161 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[112]:</div>
+<div class="prompt input_prompt">In&nbsp;[26]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># Derived from https://github.com/CRutkowski/Kijiji-Scraper</span>
+<span class="k">def</span> <span class="nf">parse_ad_summary</span><span class="p">(</span><span class="n">html</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Parses several fields of a listing summary (except the description, which is truncated),</span>
+<span class="sd">    then returns a dict of several these fields</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">ad_info</span> <span class="o">=</span> <span class="p">{}</span>
+    
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;title&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Title data.&#39;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;img&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;img&#39;</span><span class="p">))</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Image data&#39;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;http://www.kijiji.ca&#39;</span> <span class="o">+</span> <span class="n">html</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;data-vip-url&#39;</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse URL data.&#39;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;details&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;details&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Details data.&#39;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">date</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;span&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;date-posted&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="c1"># If the ad is less than 24h old, it&#39;s displayed as &#39;&lt; some amount of time&#39;</span>
+        <span class="k">if</span> <span class="n">date</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;&lt;&#39;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">today</span><span class="p">())</span>
+            <span class="n">date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">today</span><span class="p">()</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Date data.&#39;</span><span class="p">)</span>
+
+    <span class="c1"># The location field is affixed with the date for some reason</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">location</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;location&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">location</span> <span class="o">=</span> <span class="n">location</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">],</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">location</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Location data.&#39;</span><span class="p">)</span>
+
+    <span class="c1"># In addition to normal prices, there can be &#39;Free&#39; ($0), &#39;Please Contact&#39; ($-1),</span>
+    <span class="c1"># some other value ($-2), or empty ($-3)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">price</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;price&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">price</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;$&#39;</span><span class="p">:</span>
+            <span class="n">price</span> <span class="o">=</span> <span class="n">price</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="k">elif</span> <span class="n">price</span> <span class="o">==</span> <span class="s1">&#39;Please Contact&#39;</span><span class="p">:</span>
+            <span class="n">price</span> <span class="o">=</span> <span class="s1">&#39;-1.00&#39;</span>
+        <span class="k">elif</span> <span class="n">price</span> <span class="o">==</span> <span class="s1">&#39;Free&#39;</span><span class="p">:</span>
+            <span class="n">price</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">price</span> <span class="o">=</span> <span class="s1">&#39;-2.00&#39;</span>
+        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;price&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">price</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse Price data.&#39;</span><span class="p">)</span>
+        <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;price&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;-3.00&#39;</span>
+
+    <span class="k">return</span> <span class="n">ad_info</span> 
+
+<span class="k">def</span> <span class="nf">parse_ad_page</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;Parses the description from an ad page&#39;&#39;&#39;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">page</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;[Error] Unable to load &#39;</span> <span class="o">+</span> <span class="n">url</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;&#39;</span>
+    
+    <span class="n">soup</span> <span class="o">=</span> <span class="n">BeautifulSoup</span><span class="p">(</span><span class="n">page</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="s1">&#39;html.parser&#39;</span><span class="p">)</span>
+    
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">soup</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;itemprop&#39;</span><span class="p">:</span> <span class="s1">&#39;description&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">get_text</span><span class="p">()</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to parse ad description.&#39;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">scrape</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">existing_ad_ids</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">limit</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">url</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Args are a search string for some subject, a list of existing ad IDs to skip,</span>
+<span class="sd">    a limit to the number of results to return, and a url from which to start</span>
+<span class="sd">    (in case, for example, a previous scrape was halted and is now being resumed).</span>
+<span class="sd">    Returns (ads, already_scraped_ad_ids, all_ads_scraped); all_ads_scraped is whether</span>
+<span class="sd">    or not an imposed limit was reached.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1"># Initialize variables for loop</span>
+    <span class="n">ad_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="c1"># Shallow copy for now</span>
+    <span class="n">ad_ids_to_skip</span> <span class="o">=</span> <span class="n">existing_ad_ids</span> <span class="k">if</span> <span class="n">existing_ad_ids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">set</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">url</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span> <span class="n">url</span> <span class="o">=</span> \
+        <span class="n">f</span><span class="s1">&#39;https://www.kijiji.ca/b-city-of-toronto/</span><span class="si">{subject}</span><span class="s1">/k0l1700273?ll=43.650843,-79.377573&amp;dc=true&#39;</span>
+
+    <span class="n">ads_parsed</span> <span class="o">=</span> <span class="mi">0</span>
+    
+    <span class="n">already_scraped_ad_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    
+    <span class="k">while</span> <span class="n">url</span><span class="p">:</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">page</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;[Error] Unable to load </span><span class="si">{url}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">soup</span> <span class="o">=</span> <span class="n">BeautifulSoup</span><span class="p">(</span><span class="n">page</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="s1">&#39;html.parser&#39;</span><span class="p">)</span>
+
+        <span class="n">ads</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;regular-ad&#39;</span><span class="p">})</span>
+        
+        <span class="c1"># Skip third-party ads; these third parties are typically small retailers</span>
+        <span class="n">third_party_ads</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="s1">&#39;div&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;third-party&#39;</span><span class="p">})</span>
+        <span class="n">third_party_ad_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">ad</span><span class="p">[</span><span class="s1">&#39;data-ad-id&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">ad</span> <span class="ow">in</span> <span class="n">third_party_ads</span><span class="p">])</span>
+
+        <span class="c1"># Parse ads until the limit is reached</span>
+        <span class="k">for</span> <span class="n">ad</span> <span class="ow">in</span> <span class="n">ads</span><span class="p">:</span>
+            <span class="n">title</span> <span class="o">=</span> <span class="n">ad</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;class&#39;</span><span class="p">:</span> <span class="s1">&#39;title&#39;</span><span class="p">})</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">ad_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ad</span><span class="p">[</span><span class="s1">&#39;data-ad-id&#39;</span><span class="p">])</span>
+            
+            <span class="k">if</span> <span class="n">ad_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">third_party_ads</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">ad_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ad_ids_to_skip</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;New ad found! Ad id: </span><span class="si">{ad_id}</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">ad_info</span> <span class="o">=</span> <span class="n">parse_ad_summary</span><span class="p">(</span><span class="n">ad</span><span class="p">)</span>
+                    <span class="n">ad_url</span> <span class="o">=</span> <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span>
+                    <span class="n">ad_info</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">parse_ad_page</span><span class="p">(</span><span class="n">ad_url</span><span class="p">)</span>
+                    <span class="n">ad_dict</span><span class="p">[</span><span class="n">ad_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">ad_info</span>
+                    <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">ads_parsed</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">if</span> <span class="n">ads_parsed</span> <span class="o">&gt;=</span> <span class="n">limit</span><span class="p">:</span> <span class="k">return</span> <span class="n">ad_dict</span><span class="p">,</span> <span class="n">already_scraped_ad_ids</span><span class="p">,</span> <span class="n">url</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Skip already-scraped ad&#39;</span><span class="p">)</span>
+                    <span class="n">already_scraped_ad_ids</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">ad_id</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Skip third-party ad&#39;</span><span class="p">)</span>
+                
+        <span class="n">url</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;title&#39;</span> <span class="p">:</span> <span class="s1">&#39;Next&#39;</span><span class="p">})</span>
+        <span class="k">if</span> <span class="n">url</span><span class="p">:</span>
+            <span class="n">url_path</span> <span class="o">=</span> <span class="n">url</span><span class="p">[</span><span class="s1">&#39;href&#39;</span><span class="p">]</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;https://www.kijiji.ca</span><span class="si">{url_path}</span><span class="s1">&#39;</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">ad_dict</span><span class="p">,</span> <span class="n">already_scraped_ad_ids</span><span class="p">)</span> <span class="k">if</span> <span class="n">limit</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span><span class="n">ad_dict</span><span class="p">,</span> <span class="n">already_scraped_ad_ids</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[32]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">select_subject</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">sess</span><span class="p">):</span>
@@ -12038,7 +12048,7 @@ div#notebook {
 <span class="k">def</span> <span class="nf">update_date_scraped</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">sess</span><span class="p">):</span>
     <span class="n">subject_entry</span> <span class="o">=</span> <span class="n">select_subject</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">sess</span><span class="p">)</span>
     <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
-    <span class="n">subject_entry</span><span class="o">.</span><span class="n">date_scraped</span> <span class="o">=</span> <span class="n">now</span>
+    <span class="n">subject_entry</span><span class="o">.</span><span class="n">date_last_scraped</span> <span class="o">=</span> <span class="n">now</span>
     <span class="n">sess</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">subject_entry</span><span class="p">)</span>
     <span class="n">sess</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
     
@@ -12054,18 +12064,18 @@ div#notebook {
         <span class="n">sess</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">new_subject</span><span class="p">)</span>
         <span class="n">sess</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
         <span class="n">sess</span><span class="o">.</span><span class="n">refresh</span><span class="p">(</span><span class="n">new_subject</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">new_subject</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span>
+        <span class="n">subject_id</span> <span class="o">=</span> <span class="n">new_subject</span><span class="o">.</span><span class="n">id</span>
     <span class="k">else</span><span class="p">:</span>
+        <span class="n">subject_id</span> <span class="o">=</span> <span class="n">subject_entry</span><span class="o">.</span><span class="n">id</span>
         <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
-        <span class="n">time_since_last_scrape</span> <span class="o">=</span> <span class="n">now</span> <span class="o">-</span> <span class="n">subject_entry</span><span class="o">.</span><span class="n">date_scraped</span>
-        <span class="n">stale</span> <span class="o">=</span> <span class="n">time_since_last_scrape</span><span class="o">.</span><span class="n">days</span> <span class="o">&gt;</span> <span class="mi">1</span>
-        <span class="k">if</span> <span class="n">stale</span><span class="p">:</span>
-            <span class="n">listings</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">SubjectListing</span><span class="o">.</span><span class="n">listing_id</span><span class="p">)</span> \
-                <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Subject</span><span class="p">,</span> <span class="n">Subject</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">SubjectListing</span><span class="o">.</span><span class="n">subject_id</span><span class="p">)</span> \
-                <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">Subject</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">subject</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">subject_entry</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nb">set</span><span class="p">([</span><span class="n">listing</span><span class="o">.</span><span class="n">listing_id</span> <span class="k">for</span> <span class="n">listing</span> <span class="ow">in</span> <span class="n">listings</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">subject_entry</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="n">time_since_last_scrape</span> <span class="o">=</span> <span class="n">now</span> <span class="o">-</span> <span class="n">subject_entry</span><span class="o">.</span><span class="n">date_last_scraped</span>
+        <span class="n">freshly_scraped</span> <span class="o">=</span> <span class="n">time_since_last_scrape</span><span class="o">.</span><span class="n">days</span> <span class="o">&lt;</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">freshly_scraped</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">subject_id</span><span class="p">,</span> <span class="kc">None</span>
+    
+    <span class="n">listings</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Listing</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+    <span class="c1"># each returned element from a single-column select is a single-element tuple</span>
+    <span class="k">return</span> <span class="n">subject_id</span><span class="p">,</span> <span class="nb">set</span><span class="p">([</span><span class="n">listing</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">listing</span> <span class="ow">in</span> <span class="n">listings</span><span class="p">])</span>
 
 <span class="k">def</span> <span class="nf">write_ads_to_db</span><span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">ads</span><span class="p">,</span> <span class="n">sess</span><span class="p">):</span>  <span class="c1"># Writes ads from given dictionary to given file</span>
     <span class="n">listings</span> <span class="o">=</span> <span class="p">[</span><span class="n">Listing</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="o">**</span><span class="n">ad</span><span class="p">)</span> <span class="k">for</span> <span class="nb">id</span><span class="p">,</span> <span class="n">ad</span> <span class="ow">in</span> <span class="n">ads</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
@@ -12073,6 +12083,12 @@ div#notebook {
         <span class="n">sess</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">listing</span><span class="p">)</span>
         <span class="n">sess</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">SubjectListing</span><span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">listing</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
         <span class="n">sess</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">write_subject_listing_relations_for_already_scraped_ads_to_db</span><span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">already_scraped_ad_ids</span><span class="p">,</span> <span class="n">sess</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">already_scraped_ad_id</span> <span class="ow">in</span> <span class="n">already_scraped_ad_ids</span><span class="p">:</span>
+        <span class="n">sess</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">SubjectListing</span><span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">already_scraped_ad_id</span><span class="p">))</span>
+        <span class="n">sess</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        
 </pre></div>
 
 </div>
@@ -12082,7 +12098,7 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="prompt input_prompt">In&nbsp;[7]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">connect_db</span><span class="p">():</span>
@@ -12102,25 +12118,27 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="prompt input_prompt">In&nbsp;[28]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">get_listings</span><span class="p">(</span><span class="n">subject</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Returns a dataframe with all listings for a subject</span>
 <span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">subject</span> <span class="o">=</span> <span class="n">subject</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
     <span class="n">sess</span> <span class="o">=</span> <span class="n">connect_db</span><span class="p">()</span>
     <span class="n">subject_id</span><span class="p">,</span> <span class="n">ads_to_skip</span> <span class="o">=</span> <span class="n">probe_subject</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">sess</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">ads_to_skip</span><span class="p">)</span>
     
     <span class="c1"># Scrape unless it was done recently</span>
     <span class="k">if</span> <span class="n">ads_to_skip</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">url</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">all_ads_scraped</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">while</span> <span class="ow">not</span> <span class="n">all_ads_scraped</span><span class="p">:</span>
-            <span class="n">ads</span><span class="p">,</span> <span class="n">url</span> <span class="o">=</span> <span class="n">scrape</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">ads_to_skip</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
+            <span class="n">ads</span><span class="p">,</span> <span class="n">already_scraped_ad_ids</span><span class="p">,</span> <span class="n">url</span> <span class="o">=</span> <span class="n">scrape</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">ads_to_skip</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
             <span class="n">all_ads_scraped</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">url</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">False</span>
             <span class="n">write_ads_to_db</span><span class="p">(</span><span class="n">subject_id</span><span class="p">,</span> <span class="n">ads</span><span class="p">,</span> <span class="n">sess</span><span class="p">)</span>
+            <span class="n">write_subject_listing_relations_for_already_scraped_ads_to_db</span><span class="p">(</span>
+                <span class="n">subject_id</span><span class="p">,</span> <span class="n">already_scraped_ad_ids</span><span class="p">,</span> <span class="n">sess</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">ad_id</span> <span class="ow">in</span> <span class="n">ads</span><span class="p">:</span>
                 <span class="n">ads_to_skip</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">ad_id</span><span class="p">)</span>
                 
@@ -12145,7 +12163,7 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[119]:</div>
+<div class="prompt input_prompt">In&nbsp;[33]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">get_listings</span><span class="p">(</span><span class="s1">&#39;hummels&#39;</span><span class="p">)</span>
@@ -12161,18 +12179,7 @@ div#notebook {
 
 <div class="output_area">
 
-<div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>1 None
-</pre>
-</div>
-</div>
-
-<div class="output_area">
-
-<div class="prompt output_prompt">Out[119]:</div>
+<div class="prompt output_prompt">Out[33]:</div>
 
 
 
@@ -12205,6 +12212,11 @@ div#notebook {
     </tr>
   </thead>
   <tbody>
+    <tr>
+      <th>1202550115</th>
+      <td>Hummel Style Japanese Girl Chicken</td>
+      <td>Hummel Style Japanese 5 x 4 inches no chips cr...</td>
+    </tr>
     <tr>
       <th>1358609245</th>
       <td>Hummel "Trumpet Boy"</td>
@@ -12319,11 +12331,6 @@ div#notebook {
       <th>1156862038</th>
       <td>Hummel Playmates, Discontinued</td>
       <td>4 inches high by 3.5 inches wide. Discontinued...</td>
-    </tr>
-    <tr>
-      <th>1202550115</th>
-      <td>Hummel Style Japanese Girl Chicken</td>
-      <td>Hummel Style Japanese 5 x 4 inches no chips cr...</td>
     </tr>
     <tr>
       <th>1322284610</th>
