@@ -5,7 +5,7 @@ drop table listings;
 create table subjects (
     id  serial  primary key
   , name  text  unique  not null
-  , date_scraped  timestamp  without time zone  not null  default (now() at time zone 'utc')
+  , date_last_scraped  timestamp  without time zone  not null  default '0001-01-01'
 );
 
 create table listings (
@@ -15,7 +15,7 @@ create table listings (
   , url  text  not null
   , details  text  not null
   , description  text  not null
-  , date  text  not null
+  , date_posted  timestamp  not null
   , location  text  not null
   , price  money  not null
   , date_scraped  timestamp  without time zone  not null  default (now() at time zone 'utc')

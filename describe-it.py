@@ -6,9 +6,9 @@
 
 import os
 import sys
-import regex as re
+import re
 import logging
-import datetime
+from datetime import datetime, date, timedelta
 
 level = 'INFO' #'ERROR'
 logging.basicConfig(level=level)
@@ -32,7 +32,7 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
 
-# In[3]:
+# In[2]:
 
 
 # Database models
@@ -53,7 +53,7 @@ class Listing(Base):
     url = Column(String)
     details = Column(String)
     description = Column(String)
-    date = Column(String)
+    date_posted = Column(DateTime)
     location = Column(String)
     price = Column(String)
     date_scraped = Column(DateTime, FetchedValue())
@@ -79,7 +79,7 @@ class SubjectListing(Base):
     listing_id = Column(BigInteger, primary_key=True)
 
 
-# In[26]:
+# In[3]:
 
 
 # Derived from https://github.com/CRutkowski/Kijiji-Scraper
@@ -110,19 +110,25 @@ def parse_ad_summary(html):
     except:
         logging.error('Unable to parse Details data.')
 
+    raw_date = ''
     try:
-        date = html.find('span', {'class': 'date-posted'}).text.strip()
+        raw_date = html.find('span', {'class': 'date-posted'}).text.strip()
         # If the ad is less than 24h old, it's displayed as '< some amount of time'
-        if date[0] == '<':
-            print(datetime.datetime.today())
-            date = datetime.datetime.today()
+        if raw_date[0] == '<':
+            date = datetime.today().date()
+        # Or "Yesterday"
+        elif raw_date[0] == 'Y':
+            date = datetime.today().date() - timedelta(days=1)
+        else:
+            date = datetime.strptime(raw_date, '%d/%m/%Y')
+        ad_info['date_posted'] = date
     except:
-        logging.error('Unable to parse Date data.')
+        logging.error(f'Unable to parse Date data: \'{raw_date}\'')
 
     # The location field is affixed with the date for some reason
     try:
         location = html.find('div', {'class': 'location'}).text.strip()
-        location = location.replace(ad_info['date'], '')
+        location = location.replace(raw_date, '')
         ad_info['location'] = location
     except:
         logging.error('Unable to parse Location data.')
@@ -130,7 +136,7 @@ def parse_ad_summary(html):
     # In addition to normal prices, there can be 'Free' ($0), 'Please Contact' ($-1),
     # some other value ($-2), or empty ($-3)
     try:
-        price = html.find('div', {'class': 'price'}).text.strip()
+        price = html.find('div', {'class': 'price'}).text.strip().split('\n')[0]
         if price[0] == '$':
             price = price[1:]
         elif price == 'Please Contact':
@@ -151,7 +157,7 @@ def parse_ad_page(url):
     try:
         page = requests.get(url)
     except:
-        print('[Error] Unable to load ' + url)
+        logging.error('[Error] Unable to load ' + url)
         return ''
     
     soup = BeautifulSoup(page.content, 'html.parser')
@@ -185,7 +191,7 @@ def scrape(subject, existing_ad_ids = None, limit = None, url = None):
         try:
             page = requests.get(url)
         except:
-            logger.error(f'[Error] Unable to load {url}')
+            logging.error(f'[Error] Unable to load {url}')
             return
 
         soup = BeautifulSoup(page.content, 'html.parser')
@@ -195,13 +201,13 @@ def scrape(subject, existing_ad_ids = None, limit = None, url = None):
         # Skip third-party ads; these third parties are typically small retailers
         third_party_ads = soup.find_all('div', {'class': 'third-party'})
         third_party_ad_ids = set([int(ad['data-ad-id']) for ad in third_party_ads])
-
+        
         # Parse ads until the limit is reached
         for ad in ads:
             title = ad.find('a', {'class': 'title'}).text.strip()
             ad_id = int(ad['data-ad-id'])
             
-            if ad_id not in third_party_ads:
+            if ad_id not in third_party_ad_ids:
                 if ad_id not in ad_ids_to_skip:
                     logging.info(f'New ad found! Ad id: {ad_id}')
                     ad_info = parse_ad_summary(ad)
@@ -225,7 +231,7 @@ def scrape(subject, existing_ad_ids = None, limit = None, url = None):
     return (ad_dict, already_scraped_ad_ids) if limit is None else (ad_dict, already_scraped_ad_ids, None)
 
 
-# In[32]:
+# In[4]:
 
 
 def select_subject(subject, sess):
@@ -233,7 +239,7 @@ def select_subject(subject, sess):
 
 def update_date_scraped(subject, sess):
     subject_entry = select_subject(subject, sess)
-    now = datetime.datetime.utcnow()
+    now = datetime.utcnow()
     subject_entry.date_last_scraped = now
     sess.merge(subject_entry)
     sess.commit()
@@ -253,7 +259,7 @@ def probe_subject(subject, sess):
         subject_id = new_subject.id
     else:
         subject_id = subject_entry.id
-        now = datetime.datetime.utcnow()
+        now = datetime.utcnow()
         time_since_last_scrape = now - subject_entry.date_last_scraped
         freshly_scraped = time_since_last_scrape.days < 1
         if freshly_scraped:
@@ -263,7 +269,8 @@ def probe_subject(subject, sess):
     # each returned element from a single-column select is a single-element tuple
     return subject_id, set([listing[0] for listing in listings])
 
-def write_ads_to_db(subject_id, ads, sess):  # Writes ads from given dictionary to given file
+def write_ads_to_db(subject_id, ads, sess):
+    logging.info('Writing new ads to DB')
     listings = [Listing(id, **ad) for id, ad in ads.items()]
     for listing in listings:
         sess.merge(listing)
@@ -271,13 +278,14 @@ def write_ads_to_db(subject_id, ads, sess):  # Writes ads from given dictionary 
         sess.commit()
 
 def write_subject_listing_relations_for_already_scraped_ads_to_db(subject_id, already_scraped_ad_ids, sess):
+    logging.info('Updating subject with ads already scraped')
     for already_scraped_ad_id in already_scraped_ad_ids:
         sess.merge(SubjectListing(subject_id, already_scraped_ad_id))
         sess.commit()
         
 
 
-# In[7]:
+# In[5]:
 
 
 def connect_db():
@@ -290,7 +298,7 @@ def connect_db():
     return Session()
 
 
-# In[28]:
+# In[6]:
 
 
 def get_listings(subject):
@@ -305,8 +313,10 @@ def get_listings(subject):
     if ads_to_skip is not None:
         url = None
         all_ads_scraped = False
+        # Every 50 ads, write to DB
+        limit = 50
         while not all_ads_scraped:
-            ads, already_scraped_ad_ids, url = scrape(subject, ads_to_skip, limit=100, url=url)
+            ads, already_scraped_ad_ids, url = scrape(subject, ads_to_skip, limit=limit, url=url)
             all_ads_scraped = True if url is None else False
             write_ads_to_db(subject_id, ads, sess)
             write_subject_listing_relations_for_already_scraped_ads_to_db(
@@ -328,45 +338,17 @@ def get_listings(subject):
     return pd.read_sql(query, sess.get_bind(), index_col='listing_id')       
 
 
-# In[33]:
+# In[174]:
 
 
-get_listings('hummels')
-
-
-# In[117]:
-
-
-scrape('panasonic tcp50x5 plasma tv')
-
-
-# Reads in some listings
-
-# In[11]:
-
-
-def listings(subject, con):
-    # Idk if this is injectable
-    #sql_query = 'SELECT Description FROM {} WHERE delivery_method='Cesarean';', subject
-    birth_data_from_sql = pd.read_sql_query(sql_query,con)
-    listings_file_csv = '../Kijiji-Scraper/plasma_tvs.csv'
-    #df = pd.read_csv(listings_file_csv)
-    listings_file_json = '../Kijiji-Scraper/bikes.json'
-    df = pd.read_json(listings_file_json, orient='index')
-    # Kijiji uids look like unix timestamps, and afaict there's no way do stop
-    # pandas interpreting them as such while using orient='index'
-    df.index = df.index.astype(np.int64) // 10**9
-    descs = [row['Description'] for _, row in df.iterrows()]
-    print(descs)
-
-listings('test')
+get_listings('bikes')
 
 
 # Initialize spacy with the largest English CNN
 # 
 # https://spacy.io/models/en#en_core_web_lg
 
-# In[1]:
+# In[8]:
 
 
 import spacy
@@ -374,23 +356,40 @@ nlp_full = spacy.load('en_core_web_lg')
 #nlp_tokenizer = spacy.load('en_core_web_lg', disable=['tagger'])
 
 
-# In[31]:
+# In[145]:
 
 
-listings_file_json = '../Kijiji-Scraper/plasma_tvs.json'
-my_subject = 'TV'
-df = pd.read_json(listings_file_json, orient='index')
+import hunspell
+hobj = hunspell.HunSpell('../dict/en_CA.dic', '../dict/en_CA.aff')
+
+
+# ## Get descriptions for a subject
+
+# In[ ]:
+
+
+my_subject = 'hummels'
+df = get_listings(my_subject)
 # Kijiji uids look like unix timestamps, and afaict there's no way do stop
 # pandas interpreting them as such while using orient='index'
 #df.index = df.index.astype(np.int64) // 10**9
-descs = [row['Description'] for _, row in df.iterrows()]
+original_descs = [row['description'] for _, row in df.iterrows()]
+#df
 
 
-# In[32]:
+# ## Pre-processing
+# * lowercasing all-caps and over-capped sentences
+# * replacing measurements with tokens identifying their dimensionality and whether or not they carry a unit
+
+# In[155]:
 
 
 def fix_capitalization(text):
-    '''This function lowercases sentences that are in all- or nearly-all-caps'''
+    '''
+    Lowercases sentences in a body of text that are either:
+    * all-(or nearly-all-)caps
+    Too many capitalized english words (very common in classifieds)
+    '''
     sents = nl.tokenize.sent_tokenize(text)
     # First, figure out if a sentence is mostly caps, vs lowers and digits
     # Lowercasing mostly-caps sentences improves parsing, and using digits
@@ -399,50 +398,127 @@ def fix_capitalization(text):
         words = nl.tokenize.word_tokenize(sent)
         uppers = 0
         lowers_digits = 0
+        capitalized_words = 0
         for word in words:
             for letter in word:
                 if letter.isupper():
                     uppers += 1 
                 elif letter.islower() or letter.isdigit():
                     lowers_digits += 1
-        if uppers > lowers_digits * 3:
+            if word[0].isupper() and hobj.spell(word):
+                capitalized_words += 1
+                
+        if uppers > lowers_digits * 3 or capitalized_words > 5:
             #print('SHAME')
             fixed_sent = sent.lower()
             sents[i] = fixed_sent
+            
     return ' '.join(sents)
 
 
-# Lowercase all-caps sentences then run the NLP pipeline
-
-# In[33]:
+# In[10]:
 
 
-capcleaned_descs = [fix_capitalization(desc) for desc in descs]
-docs = [nlp_full(desc) for desc in capcleaned_descs]
-#capcleaned_descs
+def replace_newlines_with_periods(descs):
+    newline_with_optional_periods = re.compile('\.?\n')
+    return [newline_with_optional_periods.sub('. ', desc) for desc in descs]
 
 
-# In[34]:
+# In[137]:
 
 
-tagged_words_spacy = []
-for doc in docs:
-    tagged_words_spacy.append([(token.text, token.tag_) for token in doc])
+# I'm sure there's a way to generalize this regex,
+# but I'm also sure nobody will be describing a four-dimensional feature
+def normalize_measurements(descs):
+    # start-of-line or whitespace
+    SoL_or_WS = r'(^|\s)'
+    # measurement
+    m = r'(\d{1,9}|\d*\.\d+|\d+/\d+|\d+ \d+/\d+)'
+    # dimensional separator
+    DS = r'\s*[*xX×]\s*'
+    unit = r'[-\s]*(\'|"|\w{1,2}\d?\.?\s+|in\.|inc?h?e?s?)\s*'
+    unitless = r'(?:\s+|,)'
+    # Unit and unitless regexes overlap, so they must be applied in that order
+    dimension_regexes = []
+    dimension_regexes.append(('32', re.compile(f'{SoL_or_WS}{m}{DS}{m}{DS}{m}{unit}'))) 
+    dimension_regexes.append(('31', re.compile(f'{SoL_or_WS}{m}{DS}{m}{DS}{m}{unitless}')))
+    dimension_regexes.append(('22', re.compile(f'{SoL_or_WS}{m}{DS}{m}{unit}')))
+    dimension_regexes.append(('21', re.compile(f'{SoL_or_WS}{m}{DS}{m}{unitless}')))
+    dimension_regexes.append(('12', re.compile(f'{SoL_or_WS}{m}{unit}')))
+    dimension_regexes.append(('11', re.compile(f'{SoL_or_WS}{m}{unitless}')))
+
+    #two_d_search = re.compile(r'(^|\s)(\d+)\s*[*x×]\s*(\d+)\s*(\w{1,2}\d?)')
+    #two_d_replace = re.compile(r'^\1×\2\3')
+    #three_d_search = re.compile(r'(^|\s)(\d+)\s*[*x×]\s*(\d+)\s*[*x×]\s*(\d+)\s*(\w{1,2}\d?)?')
+    #two_d_replace = re.compile(r'\1×\2×\3\4')
     
-my_subject_lower = my_subject.lower()
-def is_brand_model_candidate(word, tag, subject_lower):
-    return tag in ['NNP'] and word.lower() != subject_lower
-brand_model_cands = []
-for sent in tagged_words_spacy:
-    brand_model_cands.append([word for (word, tag) in sent if is_brand_model_candidate(word, tag, my_subject_lower)])
-#brand_model_cands
+    #measurements = {}
+    #unnormalized_3d_measurements_in_descs = [three_d_search.findall(desc) for desc in descs]
+    #unnormalized_2d_measurements_in_descs = [two_d_search.findall(desc) for desc in descs]
+    #unnormalized_1d_measurements_in_descs = [one_d_search.findall(desc) for desc in descs]
+   
+    # Keyphrase with which to replace measurements
+    # Will be affixed with dimensional info
+    MK = '1029384756'
+    
+    original_descs = descs.copy()
+
+    for dimension, regex in dimension_regexes:
+        repl_template = f'{dimension}{MK}'
+        for desc_i, desc in enumerate(descs):
+            i = 0
+            while True:
+                subbed_desc = regex.sub(f' {repl_template}{i} ', desc, count = 1)
+                if i > 20:
+                    logging.error('too many measurements; probably a parsing error')
+                    return
+                if desc == subbed_desc: break
+                desc = subbed_desc
+            descs[desc_i] = desc
 
 
-# In[35]:
+# In[199]:
 
 
-#print(brand_model_words)
+yishu = pd.read_pickle('/home/aaron/Downloads/sephora_labeled_sent_new_new.p')
+
+
+# In[201]:
+
+
+yishus = [row['r_review'] for _, row in yishu.iterrows()]
+yishus
+
+
+# In[182]:
+
+
+descs = original_descs.copy()
+descs = replace_newlines_with_periods(yishus)
+
+normalize_measurements(descs)
+
+descs = [fix_capitalization(desc) for desc in descs]
+
+
+# ## NLP stage
+
+# In[203]:
+
+
+docs = [nlp_full(desc) for desc in yishus[:200]]
+
+
+# ## Post-processing
+
+# In[186]:
+
+
 def generate_preferred_spelling_dict(words):
+    '''
+    For some set of words, returns a dict mapping each unique lowercased word to
+    its most popular spelling and total occurrences of all spellings.
+    '''
     spellings = {}
     for word in words:
         word_lower = word.lower()
@@ -458,6 +534,9 @@ def generate_preferred_spelling_dict(words):
     return preferred_spellings
 
 def generate_multiplicity_dict(words):
+    '''
+    Counts the number of occurrences of each word, case-sensitive.
+    '''
     multiplicities = {}
     for word in words:
         if word not in multiplicities:
@@ -465,7 +544,60 @@ def generate_multiplicity_dict(words):
     return multiplicities 
 
 
-# In[36]:
+# In[187]:
+
+
+def cands_directly_describing_subject(cands, subj_descriptors):
+    return [cand for cand in cands if cand.lower() in subj_descriptors]
+
+
+# In[188]:
+
+
+# A dictionary of preferred spellings also contains word occurrence multiplicities
+def highest_multiplicity_cand(cands, preferred_spellings):
+    return max(cands, key=lambda cand: preferred_spellings[cand.lower()][1])
+
+
+# ### Identify brand candidates
+
+# In[189]:
+
+
+def is_brand_model_candidate(word, tag, subject_lower):
+    return tag in ['NNP'] and word.lower() != subject_lower
+
+
+# In[204]:
+
+
+brand_blacklist = []
+brand_whitelist = ['Panasonic', 'Samsung', 'Sharp', 'LG', 'Fujitsu', 'Philips', 'Sony', 'CCM', 'Norco', 'Raleigh', 'Shimano', 'Supercycle', 'Schwinn']
+def contains_number(string):
+     return any(char.isdigit() for char in string)
+# Most brand names don't contain numbers, but many model names do
+# Most brand names are not english words
+def find_likely_brand_names(brands):
+    whitelisted_brands = [brand for brand in brands if brand in brand_whitelist]
+    if whitelisted_brands: return whitelisted_brands
+    return [brand for brand in brands if not hobj.spell(brand) and not contains_number(brand)]
+
+
+# In[205]:
+
+
+tagged_words_spacy = []
+for doc in docs:
+    tagged_words_spacy.append([(token.text, token.tag_) for token in doc])
+    
+my_subject_lower = my_subject.lower()
+brand_model_cands = []
+for sent in tagged_words_spacy:
+    brand_model_cands.append([word for (word, tag) in sent if is_brand_model_candidate(word, tag, my_subject_lower)])
+#brand_model_cands
+
+
+# In[206]:
 
 
 listing_noun_phrases = []
@@ -483,7 +615,7 @@ for doc in docs:
 #listing_noun_phrases
 
 
-# In[37]:
+# In[207]:
 
 
 listing_noun_phrase_subjects = [np for listing in listing_noun_phrases for (descriptors, np) in listing]
@@ -491,40 +623,7 @@ subject_preferred_spellings = generate_preferred_spelling_dict(listing_noun_phra
 popular_descriptors = list(subject_preferred_spellings.items())
 
 
-# In[38]:
-
-
-import hunspell
-hobj = hunspell.HunSpell('../dict/en_CA.dic', '../dict/en_CA.aff')
-brand_blacklist = []
-brand_whitelist = ['Panasonic', 'Samsung', 'Sharp', 'LG', 'Fujitsu', 'Philips', 'Sony', 'CCM', 'Norco', 'Raleigh', 'Shimano', 'Supercycle', 'Schwinn']
-def contains_number(string):
-     return any(char.isdigit() for char in string)
-# Most brand names don't contain numbers, but many model names do
-# Most brand names are not english words
-def find_likely_brand_names(brands):
-    whitelisted_brands = [brand for brand in brands if brand in brand_whitelist]
-    if whitelisted_brands: return whitelisted_brands
-    return [brand for brand in brands if not hobj.spell(brand) and not contains_number(brand)]
-    
-
-
-# In[39]:
-
-
-def cands_directly_describing_subject(cands, subj_descriptors):
-    return [cand for cand in cands if cand.lower() in subj_descriptors]
-
-
-# In[40]:
-
-
-# A dictionary of preferred spellings also contains word occurrence multiplicities
-def highest_multiplicity_cand(cands, preferred_spellings):
-    return max(cands, key=lambda cand: preferred_spellings[cand.lower()][1])
-
-
-# In[41]:
+# In[208]:
 
 
 brand_names = []
@@ -560,14 +659,14 @@ for doc, brand_cands, nps in zip(
 #brand_names
 
 
-# In[42]:
+# In[209]:
 
 
 popular_descriptors.sort(key=lambda desc: desc[1][1], reverse=True)
 #popular_descriptors
 
 
-# In[43]:
+# In[210]:
 
 
 popular_brands = [preferred_spelling for (key, preferred_spelling) in preferred_brand_spellings.items()]
@@ -575,7 +674,7 @@ popular_brands.sort(key=lambda brand: brand[1], reverse=True)
 #popular_brands
 
 
-# In[58]:
+# In[211]:
 
 
 most_popular_descriptors = [descriptor for (descriptor, _) in popular_descriptors[:10]]
@@ -619,7 +718,6 @@ for subject, listings in indirect_descriptor_phrases.items():
     flattened_indirect_descriptor_phrase_list = []
     for listing in listings:
         for description in listing:
-            print(description)
             # This will unfortunately put spaces around hyphens, and that sort of thing
             text_description = ' '.join([preferred_descriptor_spellings[descriptor.lower()][0] for descriptor in description])
             flattened_indirect_descriptor_phrase_list.append(text_description)
@@ -633,20 +731,27 @@ for feature, descriptors in top_indirect_descriptors.items():
         print(f'\t{descriptor} ({mult})')
 
 
-# In[45]:
+# In[198]:
 
 
 for brand, mult in popular_brands[:15]:
     print(f'{brand} ({mult})')
 
 
-# In[46]:
+# In[173]:
 
 
-# for doc in docs[:3]:
-#     spacy.displacy.render(doc, style='dep', jupyter=True)
-#     print(doc)
-#     print(doc.ents)
+spacy.displacy.render(nlp_full('Hummel-Like Porcelain figurines , set of 6, mint condition'), style='dep', jupyter=True)
+
+
+# In[172]:
+
+
+for doc, original_desc in zip(docs, original_descs):
+    spacy.displacy.render(doc, style='dep', jupyter=True)
+    print(doc)
+    #print(doc.ents)
+    print(original_desc)
 
 
 # In[47]:
@@ -663,11 +768,13 @@ for brand, mult in popular_brands[:15]:
 # brand_model_cands
 
 
-# In[49]:
+# In[96]:
 
 
-#testdoc = nlp_full('42x42 cm black cat')
-#spacy.displacy.render(testdoc, style='dep', jupyter = True)
+testdoc = nlp_full('msrmnT1 tv with a msrmnT2 stand')
+testdoc2 = nlp_full('Here are the TV specs:. size: 1UmsrmnT1. HDMI ports: 2msrmnT2')
+spacy.displacy.render(testdoc, style='dep', jupyter = True)
+spacy.displacy.render(testdoc2, style='dep', jupyter = True)
 
 
 # In[50]:
