@@ -338,7 +338,7 @@ def get_listings(subject):
     return pd.read_sql(query, sess.get_bind(), index_col='listing_id')       
 
 
-# In[174]:
+# In[7]:
 
 
 get_listings('bikes')
@@ -356,7 +356,7 @@ nlp_full = spacy.load('en_core_web_lg')
 #nlp_tokenizer = spacy.load('en_core_web_lg', disable=['tagger'])
 
 
-# In[145]:
+# In[9]:
 
 
 import hunspell
@@ -365,10 +365,10 @@ hobj = hunspell.HunSpell('../dict/en_CA.dic', '../dict/en_CA.aff')
 
 # ## Get descriptions for a subject
 
-# In[ ]:
+# In[10]:
 
 
-my_subject = 'hummels'
+my_subject = 'bikes'
 df = get_listings(my_subject)
 # Kijiji uids look like unix timestamps, and afaict there's no way do stop
 # pandas interpreting them as such while using orient='index'
@@ -381,7 +381,7 @@ original_descs = [row['description'] for _, row in df.iterrows()]
 # * lowercasing all-caps and over-capped sentences
 # * replacing measurements with tokens identifying their dimensionality and whether or not they carry a unit
 
-# In[155]:
+# In[11]:
 
 
 def fix_capitalization(text):
@@ -416,7 +416,7 @@ def fix_capitalization(text):
     return ' '.join(sents)
 
 
-# In[10]:
+# In[12]:
 
 
 def replace_newlines_with_periods(descs):
@@ -424,7 +424,7 @@ def replace_newlines_with_periods(descs):
     return [newline_with_optional_periods.sub('. ', desc) for desc in descs]
 
 
-# In[137]:
+# In[13]:
 
 
 # I'm sure there's a way to generalize this regex,
@@ -477,24 +477,24 @@ def normalize_measurements(descs):
             descs[desc_i] = desc
 
 
-# In[199]:
+# In[14]:
 
 
-yishu = pd.read_pickle('/home/aaron/Downloads/sephora_labeled_sent_new_new.p')
+#yishu = pd.read_pickle('/home/aaron/Downloads/sephora_labeled_sent_new_new.p')
 
 
-# In[201]:
+# In[15]:
 
 
-yishus = [row['r_review'] for _, row in yishu.iterrows()]
-yishus
+#yishus = [row['r_review'] for _, row in yishu.iterrows()]
+#yishus
 
 
-# In[182]:
+# In[16]:
 
 
 descs = original_descs.copy()
-descs = replace_newlines_with_periods(yishus)
+descs = replace_newlines_with_periods(descs)
 
 normalize_measurements(descs)
 
@@ -503,15 +503,17 @@ descs = [fix_capitalization(desc) for desc in descs]
 
 # ## NLP stage
 
-# In[203]:
+# In[60]:
 
 
-docs = [nlp_full(desc) for desc in yishus[:200]]
+my_subject_lemmas = [word.lemma_ for word in nlp_full(my_subject)]
+docs = [nlp_full(desc) for desc in descs]
+my_subject_lemmas
 
 
 # ## Post-processing
 
-# In[186]:
+# In[18]:
 
 
 def generate_preferred_spelling_dict(words):
@@ -544,14 +546,14 @@ def generate_multiplicity_dict(words):
     return multiplicities 
 
 
-# In[187]:
+# In[19]:
 
 
 def cands_directly_describing_subject(cands, subj_descriptors):
     return [cand for cand in cands if cand.lower() in subj_descriptors]
 
 
-# In[188]:
+# In[20]:
 
 
 # A dictionary of preferred spellings also contains word occurrence multiplicities
@@ -561,14 +563,14 @@ def highest_multiplicity_cand(cands, preferred_spellings):
 
 # ### Identify brand candidates
 
-# In[189]:
+# In[21]:
 
 
 def is_brand_model_candidate(word, tag, subject_lower):
     return tag in ['NNP'] and word.lower() != subject_lower
 
 
-# In[204]:
+# In[22]:
 
 
 brand_blacklist = []
@@ -583,7 +585,7 @@ def find_likely_brand_names(brands):
     return [brand for brand in brands if not hobj.spell(brand) and not contains_number(brand)]
 
 
-# In[205]:
+# In[23]:
 
 
 tagged_words_spacy = []
@@ -597,40 +599,55 @@ for sent in tagged_words_spacy:
 #brand_model_cands
 
 
-# In[206]:
+# In[27]:
 
 
-listing_noun_phrases = []
+popular_brands = [preferred_spelling for (key, preferred_spelling) in preferred_brand_spellings.items()]
+popular_brands.sort(key=lambda brand: brand[1], reverse=True)
+#popular_brands
+
+
+# ### Find features and their descriptions
+
+# In[ ]:
+
+
+listings_described_features = []
+listings_orphaned_descriptors = []
 stop_tags = ['PRP', 'DT'] #'IN'
 for doc in docs:
     #spans = [span for span in list(doc.noun_chunks) ]
     #tokens = [(token, token.tag_) for span in spans for token in span]
     #print(tokens)
-    noun_phrases = []
+    described_features = []
+    orphaned_descriptors = []
     for np in doc.noun_chunks:
         if np.root.tag_ not in stop_tags:
-            important_descriptors = [word for word in np if not word.tag_ in stop_tags and not word.text == np.root.text]
-            noun_phrases.append((important_descriptors, np.root.text))
-    listing_noun_phrases.append(noun_phrases)
+            interesting_descriptors = [
+                word for word in np 
+                    if not word.tag_ in stop_tags 
+                    and not word.is_stop
+                    and not word.text == np.root.text
+            ]
+            if np.root.lemma_ in my_subject_lemmas:
+                print(interesting_descriptors)
+                orphaned_descriptors.append(interesting_descriptors)
+            else:
+                described_features.append((interesting_descriptors, np.root.text))
+    listings_described_features.append(described_features)
+    listings_orphaned_descriptors.append(orphaned_descriptors)
+#listing_orphaned_descriptors
 #listing_noun_phrases
 
 
-# In[207]:
-
-
-listing_noun_phrase_subjects = [np for listing in listing_noun_phrases for (descriptors, np) in listing]
-subject_preferred_spellings = generate_preferred_spelling_dict(listing_noun_phrase_subjects)
-popular_descriptors = list(subject_preferred_spellings.items())
-
-
-# In[208]:
+# In[54]:
 
 
 brand_names = []
 flattened_cand_list = [cand for cands in brand_model_cands for cand in cands]
 preferred_brand_spellings = generate_preferred_spelling_dict(flattened_cand_list)
-for doc, brand_cands, nps in zip(
-    docs, brand_model_cands, listing_noun_phrases
+for doc, brand_cands, listing_described_features in zip(
+    docs, brand_model_cands, listings_described_features
 ):
     if not brand_cands:
         brand_names.append('')
@@ -638,18 +655,18 @@ for doc, brand_cands, nps in zip(
         
     # See if one of the candidates is being used to directly describe the subject of
     #   the listing, rather than some other noun in the listing.
-    subj_descriptors = [descriptors for (descriptors, subj) in nps if subj.lower() == my_subject_lower]
-    flattened_subj_descriptors = [x.text.lower() for y in subj_descriptors for x in y]
+    feature_descriptors = [descriptors for (descriptors, feature) in listing_described_features if feature.lower() == my_subject_lower]
+    flattened_feature_descriptors = [x.text.lower() for y in feature_descriptors for x in y]
     
     top_cands = find_likely_brand_names(brand_cands)
     if top_cands:
-        top_top_cands = cands_directly_describing_subject(top_cands, flattened_subj_descriptors)
+        top_top_cands = cands_directly_describing_subject(top_cands, flattened_feature_descriptors)
         if top_top_cands:
             top_cand = highest_multiplicity_cand(top_top_cands, preferred_brand_spellings)
         else:
             top_cand = highest_multiplicity_cand(top_cands, preferred_brand_spellings)
     else:
-        top_cands = [cand for cand in brand_cands if cand.lower() in flattened_subj_descriptors]
+        top_cands = [cand for cand in brand_cands if cand.lower() in flattened_feature_descriptors]
         if top_cands:
             top_cand = highest_multiplicity_cand(top_cands, preferred_brand_spellings)
         else:
@@ -659,49 +676,66 @@ for doc, brand_cands, nps in zip(
 #brand_names
 
 
-# In[209]:
+# In[55]:
 
 
-popular_descriptors.sort(key=lambda desc: desc[1][1], reverse=True)
-#popular_descriptors
+features = [
+    feature 
+    for listing_described_features in listings_described_features
+    for (descriptors, feature) in listing_described_features
+]
+feature_preferred_spellings = generate_preferred_spelling_dict(features)
+popular_features = list(feature_preferred_spellings.items())
+popular_features.sort(key=lambda desc: desc[1][1], reverse=True)
 
 
-# In[210]:
+# In[111]:
 
 
-popular_brands = [preferred_spelling for (key, preferred_spelling) in preferred_brand_spellings.items()]
-popular_brands.sort(key=lambda brand: brand[1], reverse=True)
-#popular_brands
-
-
-# In[211]:
-
-
-most_popular_descriptors = [descriptor for (descriptor, _) in popular_descriptors[:10]]
-aggregate_indirect_descriptors = []
-indirect_descriptor_phrases = {descriptor:[] for descriptor in most_popular_descriptors}
-for listing in listing_noun_phrases:
-    for descriptors, subject in listing:
-        subject_lower = subject.lower()
-        if subject_lower in most_popular_descriptors:
-            subject_descriptions = []
-            description_buffer = []
+most_popular_features = [feature for (feature, _) in popular_features[:10]]
+all_descriptors = set()
+feature_descriptors = {feature:[] for feature in most_popular_features}
+for listing_described_features in listings_described_features:
+    for descriptors, feature in listing_described_features:
+        feature = feature.lower()
+        if feature in most_popular_features:
+            feature_descriptions = []
+            #already_handled = []
             for descriptor in descriptors:
-                #if len(descriptor.text) == 1 and re.findall('[^A-Za-z0-9]', descriptor.text): continue
-                description_buffer.append(descriptor.text)
-                aggregate_indirect_descriptors.append(descriptor.text)
-                #print(descriptor.text)
-                # If the descriptor directly modifies the subject of the NP, take it
-                # and all descriptors in the buffer (that presumably modify this new descriptor)
-                if descriptor.head.text == subject:
-                    subject_descriptions.append(description_buffer)
-                    description_buffer = []
-            indirect_descriptor_phrases[subject_lower].append(subject_descriptions)
+                if descriptor in already_handled or descriptor.is_stop: continue
+                if descriptor.head.text == feature:
+                    full_description = []
+                    # Not sure how valid the assumption is that the children will be
+                    # in front of the main descriptor
+                    for dependent_descriptor in descriptor.children:
+                        if not dependent_descriptor.is_stop:
+                            all_descriptors.add(dependent_descriptor)
+                            full_description.append(dependent_descriptor.text)
+                    all_descriptors.add(descriptor)
+                    full_description.append(descriptor.text)
+                    # This filters out a lot of stray punctuation
+                    if not (len(full_description) == 1 and len(full_description[0]) == 1):
+                        feature_descriptions.append(full_description)
+            feature_descriptors[feature].append(feature_descriptions)
             
+#for handled in already_handled:
+#    print(handled)
             #print(subject)        
             #print(subject_descriptions)
-            
-preferred_descriptor_spellings = generate_preferred_spelling_dict(aggregate_indirect_descriptors)
+#print(listings_orphaned_descriptors)
+flattened_orphaned_descriptors = [
+    descriptor.text
+         for listing_orphaned_descriptors in listings_orphaned_descriptors
+             for descriptors in listing_orphaned_descriptors
+                 for descriptor in descriptors
+
+]
+
+preferred_descriptor_spellings = generate_preferred_spelling_dict(
+    [descriptor.text for descriptor in all_descriptors] +
+    flattened_orphaned_descriptors
+)
+#print([descriptor.text for descriptor in all_descriptors] + flattened_orphaned_descriptors)
 #print(indirect_descriptor_phrases)
 # for subject, listings in indirect_descriptor_phrases.items():
 #     for i, listing in enumerate(listings):
@@ -713,28 +747,55 @@ preferred_descriptor_spellings = generate_preferred_spelling_dict(aggregate_indi
 #                 if descriptor != preferred_spelling:
 #                     indirect_descriptor_phrases[subject][i][j][k] = preferred_spelling
 # print(indirect_descriptor_phrases)
-top_indirect_descriptors = {descriptor:[] for descriptor in most_popular_descriptors}
-for subject, listings in indirect_descriptor_phrases.items():
+top_descriptors = {feature:[] for feature in most_popular_features}
+for feature, listings in feature_descriptors.items():
     flattened_indirect_descriptor_phrase_list = []
     for listing in listings:
         for description in listing:
             # This will unfortunately put spaces around hyphens, and that sort of thing
+            #print(description)
             text_description = ' '.join([preferred_descriptor_spellings[descriptor.lower()][0] for descriptor in description])
             flattened_indirect_descriptor_phrase_list.append(text_description)
     preferred_descriptions = list(generate_multiplicity_dict(flattened_indirect_descriptor_phrase_list).items())
-    preferred_descriptions.sort(key=lambda desc: desc[1], reverse=True)
-    top_indirect_descriptors[subject] = preferred_descriptions
 
-for feature, descriptors in top_indirect_descriptors.items():
+    top_descriptors[feature] = preferred_descriptions
+    
+for feature, descriptors in top_descriptors.items():
+    descriptors.sort(key=lambda desc: desc[1], reverse=True)
     print(f'{feature}:')
     for descriptor, mult in descriptors[:8]:
         print(f'\t{descriptor} ({mult})')
+        
+def reassociate_orphaned_descriptor(orphaned_descriptor, features_descriptors):
+    for _, feature_descriptors in features_descriptors.items():
+        #print(feature_descriptors)
+        for i, (feature_descriptor, mult) in enumerate(feature_descriptors[:8]):
+            #print(orphaned_descriptor, feature_descriptor)
+            if orphaned_descriptor == feature_descriptor:
+                feature_descriptors[i] = (feature_descriptor, mult + 1)
+                return True
+    return False
+
+true_orphans = []
+for orphaned_descriptor in flattened_orphaned_descriptors:
+    if len(orphaned_descriptor) == 1: continue
+    orphaned_descriptor = preferred_descriptor_spellings[orphaned_descriptor.lower()][0]
+    if not reassociate_orphaned_descriptor(orphaned_descriptor, top_descriptors):
+        true_orphans.append(orphaned_descriptor)
+
+preferred_orphan_descriptors = list(generate_multiplicity_dict(true_orphans).items())
+preferred_orphan_descriptors.sort(key=lambda desc: desc[1], reverse=True)
+        
+print('Type:')
+#print(preferred_orphan_descriptors)
+for descriptor, mult in preferred_orphan_descriptors[:8]:
+    print(f'\t{descriptor} ({mult})')
 
 
-# In[198]:
+# In[99]:
 
 
-for brand, mult in popular_brands[:15]:
+for brand, mult in popular_brands[:30]:
     print(f'{brand} ({mult})')
 
 
