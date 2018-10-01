@@ -275,7 +275,7 @@ def probe_subject(subject, sess):
         subject_id = subject_entry.id
         now = datetime.utcnow()
         time_since_last_scrape = now - subject_entry.date_last_scraped
-        freshly_scraped = time_since_last_scrape.days < 1
+        freshly_scraped = time_since_last_scrape.days < 365
         if freshly_scraped:
             return subject_id, None
     
@@ -521,13 +521,13 @@ def top_features_and_descriptors(subject):
     # Kijiji uids look like unix timestamps, and afaict there's no way do stop
     # pandas interpreting them as such while using orient='index'
     #df.index = df.index.astype(np.int64) // 10**9
-    original_descs = [row['description'] for _, row in df.iterrows()]
+    #return df
+    descs = [row['description'] for _, row in df.iterrows()]
 
     # ## Pre-processing
     # * lowercasing all-caps and over-capped sentences
     # * replacing measurements with tokens identifying their dimensionality and whether or not they carry a unit
 
-    descs = original_descs.copy()
     descs = replace_newlines_with_periods(descs)
 
     normalize_measurements(descs)
