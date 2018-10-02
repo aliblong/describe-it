@@ -145,7 +145,8 @@ def normalize_measurements(descs):
         for desc_i, desc in enumerate(descs):
             i = 0
             while True:
-                subbed_desc = regex.sub(f' {repl_template}{i} ', desc, count = 1)
+                #subbed_desc = regex.sub(f' {repl_template}{i} ', desc, count = 1)
+                subbed_desc = regex.sub(f' {repl_template} ', desc, count = 1)
                 if i > 20:
                     logging.error('too many measurements; probably a parsing error')
                     return
