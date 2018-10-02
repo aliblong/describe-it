@@ -17,7 +17,7 @@ level = 'INFO' #'ERROR'
 logging.basicConfig(level=level)
 load_dotenv(find_dotenv())
 
-nlp = spacy.load('en_core_web_sm')
+nlp = spacy.load('en_core_web_lg')
 
 # Add personal possessive pronouns to stop-words collection
 for ppp in ['my', 'your', 'their', 'his', 'her', 'our']:
