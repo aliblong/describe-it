@@ -1,3 +1,6 @@
+from datetime import datetime, date, timedelta
+
+import logging
 import requests
 from bs4 import BeautifulSoup
 
@@ -82,7 +85,7 @@ def parse_ad_page(url):
     soup = BeautifulSoup(page.content, 'html.parser')
 
     try:
-        return soup.find('div', {'itemprop': 'description'}).get_text()
+        return '\n'.join([p.get_text() for p in soup.find('div', {'itemprop': 'description'}).find_all('p')])
     except:
         logging.error('Unable to parse ad description.')
         return None
