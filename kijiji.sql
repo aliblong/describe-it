@@ -1,6 +1,12 @@
-drop table subject_listings;
-drop table subjects;
-drop table listings;
+drop database if exists kijiji;
+drop table if exists subject_listings;
+drop table if exists subjects;
+drop table if exists listings;
+drop role if exists describe;
+
+create database kijiji;
+create role describe with password 'describe';
+grant all privileges on database kijiji to describe;
 
 create table subjects (
     id  serial  primary key
@@ -30,7 +36,7 @@ create table subject_listings (
 );
 
 -- permissions hack
-grant all privileges on table subjects to insight;
-grant all privileges on table listings to insight;
-grant all privileges on table subject_listings to insight;
-grant usage, select on all sequences in schema public to insight;
+grant all privileges on table subjects to describe;
+grant all privileges on table listings to describe;
+grant all privileges on table subject_listings to describe;
+grant usage, select on all sequences in schema public to describe;
