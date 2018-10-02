@@ -1,4 +1,5 @@
-from datetime import datetime, date, timedelta
+import logging
+from datetime import datetime
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, aliased
@@ -36,7 +37,7 @@ def probe_subject(subject, sess):
         subject_id = subject_entry.id
         now = datetime.utcnow()
         time_since_last_scrape = now - subject_entry.date_last_scraped
-        freshly_scraped = time_since_last_scrape.days < 365
+        freshly_scraped = time_since_last_scrape.days < 7
         if freshly_scraped:
             return subject_id, None
 
@@ -73,3 +74,10 @@ def connect_db(url):
     engine = create_engine(url)
     Session = sessionmaker(bind=engine)
     return Session()
+
+
+def delete_dupes(sess):
+    sess.execute('''
+    delete from listings a using listings b
+        where a.id < b.id and a.description = b.description;
+    ''')

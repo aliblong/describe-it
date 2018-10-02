@@ -54,6 +54,7 @@ def get_listings(subject):
                 ads_to_skip.add(ad_id)
 
         db.update_date_scraped(subject, sess)
+        db.delete_dupes(sess)
 
     # This could be done with the ORM
     query = f'''
