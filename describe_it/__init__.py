@@ -6,7 +6,6 @@ import logging
 import numpy as np
 import nltk as nl
 import pandas as pd
-import sklearn as sk
 
 from dotenv import load_dotenv, find_dotenv
 import spacy
