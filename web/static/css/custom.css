@@ -1,0 +1,15 @@
+.descriptor {
+    margin-top: 0px;
+    margin-bottom: 0px;
+    margin-right: 0px;
+    margin-left: 20px;
+}
+
+.title {
+    text-align:center;
+}
+
+.row > div {
+  background: lightgrey;
+  border: 1px solid grey;
+}

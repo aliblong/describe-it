@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import logging
+from collections import OrderedDict
 
 import numpy as np
 import nltk as nl
@@ -330,7 +331,7 @@ def top_features_and_descriptors(subject):
     popular_features = list(feature_preferred_spellings.items())
     popular_features.sort(key=lambda desc: desc[1][1], reverse=True)
 
-    most_popular_features = [feature for (feature, _) in popular_features[:10]]
+    most_popular_features = [feature for (feature, _) in popular_features[:11]]
     all_descriptors = set()
     feature_descriptors = {feature:[] for feature in most_popular_features}
     for listing_described_features in listings_described_features:
@@ -367,7 +368,10 @@ def top_features_and_descriptors(subject):
         [descriptor.text for descriptor in all_descriptors] +
         flattened_orphaned_descriptors
     )
-    top_descriptors = {feature:[] for feature in most_popular_features}
+    top_descriptors = OrderedDict()
+    top_descriptors['Type'] = []
+    for feature in most_popular_features:
+        top_descriptors[feature] = []
     for feature, listings in feature_descriptors.items():
         flattened_indirect_descriptor_phrase_list = []
         for listing in listings:
