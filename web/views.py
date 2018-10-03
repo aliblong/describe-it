@@ -23,7 +23,7 @@ def output():
         feature_descriptions = []
         #color = '#aaa' if i % 2 == 0 else '#bbb'
         #feature_descriptions.append(f'<div class="col-md-3 feature" style="background-color:{color};"><h4>{feature.capitalize()}:</h4><div class="descriptor">')
-        feature_descriptions.append(f'<div class="col-md-3"><h4>{feature.capitalize()}:</h4><div class="descriptor">')
+        feature_descriptions.append(f'<div class="col-md-3"><div class="col-md-12 feature"><h4>{feature.capitalize()}:</h4></div><div class="descriptor col-md-12">')
         for descriptor, mult in descriptors:
             feature_descriptions.append(
                     f'<p>{descriptor} ({mult})</p>'

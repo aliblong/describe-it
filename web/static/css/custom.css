@@ -9,7 +9,10 @@
     text-align:center;
 }
 
-.row > div {
+.feature {
   background: lightgrey;
+}
+
+.row > div {
   border: 1px solid grey;
 }
