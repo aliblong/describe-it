@@ -8,15 +8,7 @@ from web import app
 @app.route('/')
 @app.route('/index')
 def index():
-    return render_template(
-        'index.html',
-        title='Home', user={'nickname': 'Mr. Anderson'},
-    )
-
-
-@app.route('/input')
-def input():
-    return render_template('input.html')
+    return render_template('index.html')
 
 
 @app.route('/output')
