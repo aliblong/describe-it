@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, aliased
 from sqlalchemy_utils import database_exists, create_database
 
-from describe_it.db_models import Subject, Listing, SubjectListing
+from descrive.db_models import Subject, Listing, SubjectListing
 
 
 def select_subject(subject, sess):

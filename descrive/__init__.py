@@ -12,7 +12,7 @@ from dotenv import load_dotenv, find_dotenv
 import spacy
 import hunspell
 
-from describe_it import db, scrape
+from descrive import db, scrape
 
 level = 'INFO' #'ERROR'
 logging.basicConfig(level=level)

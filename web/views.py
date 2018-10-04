@@ -1,6 +1,6 @@
 from flask import render_template, request, Markup
 import pandas as pd
-import describe_it
+import descrive
 
 from web import app
 
@@ -15,7 +15,7 @@ def index():
 def output():
     subject = request.args.get('subject')
     top_features_and_descriptors = \
-        describe_it.top_features_and_descriptors(subject)
+        descrive.top_features_and_descriptors(subject)
     output = []
     for i, (feature, descriptors) in enumerate(
             top_features_and_descriptors.items()
