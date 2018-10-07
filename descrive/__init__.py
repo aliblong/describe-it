@@ -250,7 +250,6 @@ def top_features_and_descriptors(subject):
     my_subject_lemmas = [word.lemma_ if word.text != 'tvs' else 'tv' for word in nlp(my_subject)]
     docs = [nlp(desc) for desc in descs]
 
-
 ## Post-processing
 
     tagged_words_spacy = []
