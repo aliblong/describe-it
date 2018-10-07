@@ -109,7 +109,7 @@ def replace_newlines_with_periods(descs):
 # but I'm also sure nobody will be describing a four-dimensional feature
 def normalize_measurements(descs):
     # start-of-line or whitespace
-    SoL_or_WS = r'(^|\s)'
+    SoL_or_WS = r'(^|\s|\()'
     # measurement
     m = r'(\d{1,9}|\d*\.\d+|\d+/\d+|\d+ \d+/\d+)'
     # dimensional separator
@@ -226,6 +226,16 @@ def reassociate_orphaned_descriptor(orphaned_descriptor, features_descriptors):
     return False
 
 
+measurement_code_substitution_map = {
+    '111029384756': r'<span style="color: #ff00ff">Number</span>',
+    '121029384756': r'<span style="color: #ff00ff">1D</span>',
+    '211029384756': r'<span style="color: #ff00ff">2D unitless</span>',
+    '221029384756': r'<span style="color: #ff00ff">2D</span>',
+    '311029384756': r'<span style="color: #ff00ff">3D unitless</span>',
+    '321029384756': r'<span style="color: #ff00ff">3D</span>',
+}
+
+
 def top_features_and_descriptors(subject):
     my_subject = subject
     df = get_listings(my_subject)
@@ -234,11 +244,13 @@ def top_features_and_descriptors(subject):
     #df.index = df.index.astype(np.int64) // 10**9
     #return df
     descs = [row['description'] for _, row in df.iterrows()]
+    #logging.info(descs)
 
     # ## Pre-processing
     # * lowercasing all-caps and over-capped sentences
     # * replacing measurements with tokens identifying their dimensionality and whether or not they carry a unit
 
+    original_descs = descs.copy()
     descs = replace_newlines_with_periods(descs)
 
     normalize_measurements(descs)
@@ -282,6 +294,12 @@ def top_features_and_descriptors(subject):
         listings_described_features.append(described_features)
         listings_orphaned_descriptors.append(orphaned_descriptors)
 
+    #logging.info(listings_described_features)
+    #logging.info(listings_orphaned_descriptors)
+    for original, desc, described_features in zip(original_descs, descs, listings_described_features):
+        logging.info(original)
+        logging.info(desc)
+        logging.info(described_features)
     brand_names = []
     flattened_cand_list = [cand for cands in brand_model_cands for cand in cands]
     preferred_brand_spellings = generate_preferred_spelling_dict(flattened_cand_list)
@@ -349,7 +367,8 @@ def top_features_and_descriptors(subject):
                                 all_descriptors.add(dependent_descriptor)
                                 full_description.append(dependent_descriptor.text)
                         all_descriptors.add(descriptor)
-                        full_description.append(descriptor.text)
+                        descriptor_text = descriptor.text
+                        full_description.append(descriptor_text)
                         # This filters out a lot of stray punctuation
                         if not (len(full_description) == 1 and len(full_description[0]) == 1):
                             feature_descriptions.append(full_description)
@@ -376,7 +395,12 @@ def top_features_and_descriptors(subject):
         for listing in listings:
             for description in listing:
                 # This will unfortunately put spaces around hyphens, and that sort of thing
-                text_description = ' '.join([preferred_descriptor_spellings[descriptor.lower()][0] for descriptor in description])
+                text_description = ' '.join([
+                    preferred_descriptor_spellings[descriptor.lower()][0]
+                    if descriptor not in measurement_code_substitution_map
+                    else measurement_code_substitution_map[descriptor]
+                    for descriptor in description
+                ])
                 flattened_indirect_descriptor_phrase_list.append(text_description)
         preferred_descriptions = list(generate_multiplicity_dict(flattened_indirect_descriptor_phrase_list).items())
 
@@ -389,7 +413,11 @@ def top_features_and_descriptors(subject):
     true_orphans = []
     for orphaned_descriptor in flattened_orphaned_descriptors:
         if len(orphaned_descriptor) == 1: continue
-        orphaned_descriptor = preferred_descriptor_spellings[orphaned_descriptor.lower()][0]
+        # possibly bugged
+        orphaned_descriptor =\
+            preferred_descriptor_spellings[orphaned_descriptor.lower()][0] \
+            if orphaned_descriptor not in measurement_code_substitution_map\
+            else measurement_code_substitution_map[orphaned_descriptor]
         if not reassociate_orphaned_descriptor(orphaned_descriptor, top_descriptors):
             true_orphans.append(orphaned_descriptor)
 
