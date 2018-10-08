@@ -151,14 +151,9 @@ def normalize_measurements(descs):
 
     for regex, repl in dimension_regexes:
         for desc_i, desc in enumerate(descs):
-            log_it = False
-            if 'Vintage Raleigh Record' in desc:
-                log_it = True
             i = 0
             while True:
                 subbed_desc = regex.sub(repl, desc, count=1)
-                if log_it:
-                    logging.info(subbed_desc)
                 i += 1
                 if i > 2000:
                     logging.error('too many measurements; probably a parsing error')
@@ -199,31 +194,6 @@ def generate_multiplicity_dict(words):
         if word not in multiplicities:
             multiplicities[word] = words.count(word)
     return multiplicities
-
-
-def cands_directly_describing_subject(cands, subj_descriptors):
-    return [cand for cand in cands if cand.lower() in subj_descriptors]
-
-
-# A dictionary of preferred spellings also contains word occurrence multiplicities
-def highest_multiplicity_cand(cands, preferred_spellings):
-    return max(cands, key=lambda cand: preferred_spellings[cand.lower()][1])
-
-
-def is_brand_model_candidate(word, tag, subject_lower):
-    return tag in ['NNP'] and word.lower() != subject_lower
-
-
-# Most brand names don't contain numbers, but many model names do
-# Most brand names are not english words
-brand_blacklist = []
-brand_whitelist = ['Panasonic', 'Samsung', 'Sharp', 'LG', 'Fujitsu', 'Philips', 'Sony', 'CCM', 'Norco', 'Raleigh', 'Shimano', 'Supercycle', 'Schwinn']
-def contains_number(string):
-     return any(char.isdigit() for char in string)
-def find_likely_brand_names(brands):
-    whitelisted_brands = [brand for brand in brands if brand in brand_whitelist]
-    if whitelisted_brands: return whitelisted_brands
-    return [brand for brand in brands if not spellcheck.spell(brand) and not contains_number(brand)]
 
 
 def reassociate_orphaned_descriptor(orphaned_descriptor, features_descriptors):
@@ -285,8 +255,6 @@ def top_features_and_descriptors(subject):
 
     my_subject_lower = my_subject.lower()
     brand_model_cands = []
-    for sent in tagged_words_spacy:
-        brand_model_cands.append([word for (word, tag) in sent if is_brand_model_candidate(word, tag, my_subject_lower)])
 
     listings_described_features = []
     listings_orphaned_descriptors = []
@@ -308,51 +276,6 @@ def top_features_and_descriptors(subject):
                     described_features.append((interesting_descriptors, np.root.text))
         listings_described_features.append(described_features)
         listings_orphaned_descriptors.append(orphaned_descriptors)
-
-    #logging.info(listings_described_features)
-    #logging.info(listings_orphaned_descriptors)
-    #for original, desc, described_features in zip(original_descs, descs, listings_described_features):
-        #logging.info(original)
-        #logging.info(desc)
-        #logging.info(described_features)
-    brand_names = []
-    flattened_cand_list = [cand for cands in brand_model_cands for cand in cands]
-    preferred_brand_spellings = generate_preferred_spelling_dict(flattened_cand_list)
-    for doc, brand_cands, listing_described_features in zip(
-        docs, brand_model_cands, listings_described_features
-    ):
-        if not brand_cands:
-            brand_names.append('')
-            continue
-
-        # See if one of the candidates is being used to directly describe the subject of
-        #   the listing, rather than some other noun in the listing.
-        feature_descriptors = [descriptors for (descriptors, feature) in listing_described_features if feature.lower() == my_subject_lower]
-        flattened_feature_descriptors = [x.text.lower() for y in feature_descriptors for x in y]
-
-        top_cands = find_likely_brand_names(brand_cands)
-        if top_cands:
-            top_top_cands = cands_directly_describing_subject(top_cands, flattened_feature_descriptors)
-            if top_top_cands:
-                top_cand = highest_multiplicity_cand(top_top_cands, preferred_brand_spellings)
-            else:
-                top_cand = highest_multiplicity_cand(top_cands, preferred_brand_spellings)
-        else:
-            top_cands = [cand for cand in brand_cands if cand.lower() in flattened_feature_descriptors]
-            if top_cands:
-                top_cand = highest_multiplicity_cand(top_cands, preferred_brand_spellings)
-            else:
-                top_cand = highest_multiplicity_cand(brand_cands, preferred_brand_spellings)
-
-        brand_names.append(preferred_brand_spellings[top_cand.lower()][0])
-    #brand_names
-
-
-    # In[82]:
-
-
-    popular_brands = [preferred_spelling for (key, preferred_spelling) in preferred_brand_spellings.items()]
-    popular_brands.sort(key=lambda brand: brand[1], reverse=True)
 
     features = [
         feature
