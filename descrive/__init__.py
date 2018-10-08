@@ -211,13 +211,19 @@ def reassociate_orphaned_descriptor(orphaned_descriptor, features_descriptors):
 
 
 measurement_code_substitution_map = {
-    '111029384756': r'<span style="color: #ff00ff">Number</span>',
-    '121029384756': r'<span style="color: #ff00ff">1D</span>',
-    '211029384756': r'<span style="color: #ff00ff">2D unitless</span>',
-    '221029384756': r'<span style="color: #ff00ff">2D</span>',
-    '311029384756': r'<span style="color: #ff00ff">3D unitless</span>',
-    '321029384756': r'<span style="color: #ff00ff">3D</span>',
+    re.compile('111029384756'): r'<span style="color: #ff00ff">Number</span>',
+    re.compile('121029384756'): r'<span style="color: #ff00ff">1D</span>',
+    re.compile('211029384756'): r'<span style="color: #ff00ff">2D unitless</span>',
+    re.compile('221029384756'): r'<span style="color: #ff00ff">2D</span>',
+    re.compile('311029384756'): r'<span style="color: #ff00ff">3D unitless</span>',
+    re.compile('321029384756'): r'<span style="color: #ff00ff">3D</span>',
 }
+
+
+def backconvert_measurement_codes(string):
+    for regex, repl in measurement_code_substitution_map.items():
+        string = regex.sub(repl, string)
+    return string
 
 
 def top_features_and_descriptors(subject):
@@ -333,10 +339,13 @@ def top_features_and_descriptors(subject):
         for listing in listings:
             for description in listing:
                 # This will unfortunately put spaces around hyphens, and that sort of thing
+                for i, descriptor in enumerate(description):
+                    description[i] = backconvert_measurement_codes(descriptor)
+                # It used to be a mmt code
                 text_description = ' '.join([
                     preferred_descriptor_spellings[descriptor.lower()][0]
-                    if descriptor not in measurement_code_substitution_map
-                    else measurement_code_substitution_map[descriptor]
+                    if '<spa' not in descriptor\
+                    else descriptor
                     for descriptor in description
                 ])
                 flattened_indirect_descriptor_phrase_list.append(text_description)
@@ -352,10 +361,12 @@ def top_features_and_descriptors(subject):
     for orphaned_descriptor in flattened_orphaned_descriptors:
         if len(orphaned_descriptor) == 1: continue
         # possibly bugged
+        orphaned_descriptor = backconvert_measurement_codes(orphaned_descriptor)
+        # It used to be a mmt code
         orphaned_descriptor =\
             preferred_descriptor_spellings[orphaned_descriptor.lower()][0] \
-            if orphaned_descriptor not in measurement_code_substitution_map\
-            else measurement_code_substitution_map[orphaned_descriptor]
+            if '<spa' not in orphaned_descriptor\
+            else orphaned_descriptor
         if not reassociate_orphaned_descriptor(orphaned_descriptor, top_descriptors):
             true_orphans.append(orphaned_descriptor)
 
