@@ -268,18 +268,28 @@ def top_features_and_descriptors(subject):
     for doc in docs:
         described_features = []
         orphaned_descriptors = []
+        # Prevent run-on ads with a million products from dominating the
+        # results with nonsense
+        already_described_in_this_ad = set()
         for np in doc.noun_chunks:
-            if np.root.tag_ not in stop_tags:
+            feature = np.root
+            if feature.text in already_described_in_this_ad:
+                continue
+            already_described_in_this_ad.add(feature.text)
+            if feature.tag_ not in stop_tags:
                 interesting_descriptors = [
                     word for word in np
                         if not word.tag_ in stop_tags
                         and not word.is_stop
-                        and not word.text == np.root.text
+                        and not word.text == feature.text
                 ]
                 if np.root.lemma_ in my_subject_lemmas:
                     orphaned_descriptors.append(interesting_descriptors)
                 else:
-                    described_features.append((interesting_descriptors, np.root.text))
+                    described_features.append((
+                        interesting_descriptors,
+                        feature.text
+                    ))
         listings_described_features.append(described_features)
         listings_orphaned_descriptors.append(orphaned_descriptors)
 
