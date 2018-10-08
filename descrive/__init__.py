@@ -109,47 +109,61 @@ def replace_newlines_with_periods(descs):
 # but I'm also sure nobody will be describing a four-dimensional feature
 def normalize_measurements(descs):
     # start-of-line or whitespace
-    SoL_or_WS = r'(^|\s|\()'
+    non_alphanumeric = r'([^\w])'
     # measurement
     m = r'(\d{1,9}|\d*\.\d+|\d+/\d+|\d+ \d+/\d+)'
     # dimensional separator
     DS = r'\s*[*xX×]\s*'
-    unit = r'[-\s]*(\'|"|\w{1,2}\d?\.?\s+|in\.|inc?h?e?s?)\s*'
-    unitless = r'(?:\s+|,)'
-    # Unit and unitless regexes overlap, so they must be applied in that order
-    dimension_regexes = []
-    dimension_regexes.append(('32', re.compile(f'{SoL_or_WS}{m}{DS}{m}{DS}{m}{unit}')))
-    dimension_regexes.append(('31', re.compile(f'{SoL_or_WS}{m}{DS}{m}{DS}{m}{unitless}')))
-    dimension_regexes.append(('22', re.compile(f'{SoL_or_WS}{m}{DS}{m}{unit}')))
-    dimension_regexes.append(('21', re.compile(f'{SoL_or_WS}{m}{DS}{m}{unitless}')))
-    dimension_regexes.append(('12', re.compile(f'{SoL_or_WS}{m}{unit}')))
-    dimension_regexes.append(('11', re.compile(f'{SoL_or_WS}{m}{unitless}')))
-
-    #two_d_search = re.compile(r'(^|\s)(\d+)\s*[*x×]\s*(\d+)\s*(\w{1,2}\d?)')
-    #two_d_replace = re.compile(r'^\1×\2\3')
-    #three_d_search = re.compile(r'(^|\s)(\d+)\s*[*x×]\s*(\d+)\s*[*x×]\s*(\d+)\s*(\w{1,2}\d?)?')
-    #two_d_replace = re.compile(r'\1×\2×\3\4')
-
-    #measurements = {}
-    #unnormalized_3d_measurements_in_descs = [three_d_search.findall(desc) for desc in descs]
-    #unnormalized_2d_measurements_in_descs = [two_d_search.findall(desc) for desc in descs]
-    #unnormalized_1d_measurements_in_descs = [one_d_search.findall(desc) for desc in descs]
+    unit = r'[-\s]*(\'+|"|[a-zA-Z]{1,2}\d?|in\.|in(?:ch)?e?s?)'
 
     # Keyphrase with which to replace measurements
     # Will be affixed with dimensional info
     MK = '1029384756'
 
+    # Unit and unitless regexes overlap, so they must be applied in that order
+    dimension_regexes = []
+    dimension_regexes.append((
+        re.compile(f'{non_alphanumeric}{m}{DS}{m}{DS}{m}{unit}{non_alphanumeric}'),
+        f'\\g<1>32{MK}\\6'
+    ))
+    dimension_regexes.append((
+        re.compile(f'{non_alphanumeric}{m}{DS}{m}{DS}{m}{non_alphanumeric}'),
+        f'\\g<1>31{MK}\\5'
+    ))
+    dimension_regexes.append((
+        re.compile(f'{non_alphanumeric}{m}{DS}{m}{unit}{non_alphanumeric}'),
+        f'\\g<1>22{MK}\\5'
+    ))
+    dimension_regexes.append((
+        re.compile(f'{non_alphanumeric}{m}{DS}{m}{non_alphanumeric}'),
+        f'\\g<1>21{MK}\\4'
+    ))
+    dimension_regexes.append((
+        re.compile(f'{non_alphanumeric}{m}{unit}{non_alphanumeric}'),
+        f'\\g<1>12{MK}\\4'
+    ))
+    dimension_regexes.append((
+        re.compile(f'{non_alphanumeric}{m}{non_alphanumeric}'),
+        f'\\g<1>11{MK}\\3'
+    ))
+
     original_descs = descs.copy()
 
-    for dimension, regex in dimension_regexes:
-        repl_template = f'{dimension}{MK}'
+    for regex, repl in dimension_regexes:
         for desc_i, desc in enumerate(descs):
+            log_it = False
+            if 'Vintage Raleigh Record' in desc:
+                log_it = True
             i = 0
             while True:
-                #subbed_desc = regex.sub(f' {repl_template}{i} ', desc, count = 1)
-                subbed_desc = regex.sub(f' {repl_template} ', desc, count = 1)
-                if i > 20:
+                subbed_desc = regex.sub(repl, desc, count=1)
+                if log_it:
+                    logging.info(subbed_desc)
+                i += 1
+                if i > 2000:
                     logging.error('too many measurements; probably a parsing error')
+                    logging.error(desc)
+                    logging.error(subbed_desc)
                     return
                 if desc == subbed_desc: break
                 desc = subbed_desc
@@ -253,6 +267,7 @@ def top_features_and_descriptors(subject):
     original_descs = descs.copy()
     descs = replace_newlines_with_periods(descs)
 
+    logging.info('normalizing measurements')
     normalize_measurements(descs)
 
     descs = [fix_capitalization(desc) for desc in descs]
@@ -296,10 +311,10 @@ def top_features_and_descriptors(subject):
 
     #logging.info(listings_described_features)
     #logging.info(listings_orphaned_descriptors)
-    for original, desc, described_features in zip(original_descs, descs, listings_described_features):
-        logging.info(original)
-        logging.info(desc)
-        logging.info(described_features)
+    #for original, desc, described_features in zip(original_descs, descs, listings_described_features):
+        #logging.info(original)
+        #logging.info(desc)
+        #logging.info(described_features)
     brand_names = []
     flattened_cand_list = [cand for cands in brand_model_cands for cand in cands]
     preferred_brand_spellings = generate_preferred_spelling_dict(flattened_cand_list)
