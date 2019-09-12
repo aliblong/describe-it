@@ -101,7 +101,7 @@ def fix_capitalization(text):
 
 
 def replace_newlines_with_periods(descs):
-    newline_with_optional_periods = re.compile('\.?\n')
+    newline_with_optional_periods = re.compile('\.?\n[-*]*')
     return [newline_with_optional_periods.sub('. ', desc) for desc in descs]
 
 
@@ -146,8 +146,6 @@ def normalize_measurements(descs):
         re.compile(f'{non_alphanumeric}{m}{non_alphanumeric}'),
         f'\\g<1>11{MK}\\3'
     ))
-
-    original_descs = descs.copy()
 
     for regex, repl in dimension_regexes:
         for desc_i, desc in enumerate(descs):
@@ -233,8 +231,9 @@ def top_features_and_descriptors(subject):
     # pandas interpreting them as such while using orient='index'
     #df.index = df.index.astype(np.int64) // 10**9
     #return df
-    descs = [row['description'] for _, row in df.iterrows()]
+    descs = [row['description'] for _, row in df.iterrows() if len(row['description']) < 400]
     #logging.info(descs)
+    #descs = ['Kindhuman Kampionne road bike with 27" Mavic Aksium wheels and Ritchey WCS cockpit. 21 speed. BUY FAST']
 
     # ## Pre-processing
     # * lowercasing all-caps and over-capped sentences
@@ -292,6 +291,10 @@ def top_features_and_descriptors(subject):
                     ))
         listings_described_features.append(described_features)
         listings_orphaned_descriptors.append(orphaned_descriptors)
+    for original, desc, described_features in zip(original_descs, descs, listings_described_features):
+        logging.info(original)
+        logging.info(desc)
+        logging.info(described_features)
 
     features = [
         feature
