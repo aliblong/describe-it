@@ -123,12 +123,12 @@ def scrape(subject, existing_ad_ids = None, limit = None, url = None):
 
         # Skip third-party ads; these third parties are typically small retailers
         third_party_ads = soup.find_all('div', {'class': 'third-party'})
-        third_party_ad_ids = set([int(ad['data-ad-id']) for ad in third_party_ads])
+        third_party_ad_ids = set([int(ad['data-listing-id']) for ad in third_party_ads])
 
         # Parse ads until the limit is reached
         for ad in ads:
             title = ad.find('a', {'class': 'title'}).text.strip()
-            ad_id = int(ad['data-ad-id'])
+            ad_id = int(ad['data-listing-id'])
 
             if ad_id not in third_party_ad_ids:
                 if ad_id not in ad_ids_to_skip:
