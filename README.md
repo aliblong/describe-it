@@ -1,7 +1,12 @@
 # ![descrive](web/static/img/DescriveFullLogo.png)
 `descrive` is a [web app](http://liblo.ng/descrive) where users can discover how products on Kijiji are described. Give `descrive` a search string, and it will scrape Kijiji for matching listings (if it hasn't already done so in the past), then run an NLP-based pipeline to extract the most commonly described features and the most common corresponding descriptors.
 
-[debian_setup_example.sh](debian_setup_example.sh) contains a set of commands that can be used to set up and run the web app on a Debian-based distro. Don't be surprised if one or more steps fails, though. I wouldn't recommend using an instance with less than 3 GB RAM for this app.
+[debian_setup_example.sh](debian_setup_example.sh) contains a set of commands that can be used to set up and run the web app on a Debian-based distro.
+You may need to change the spacy model size (and update `descrive/__init__.py` accordingly) depending on the memory of your instance (these are not guarantees!):
+
+* **1 GB**: `en_core_web_sm`
+* **2 GB**: `en_core_web_md`
+* **4 GB**: `en_core_web_lg`
 
 Credit to [Sam Chow](https://www.linkedin.com/in/chowsam/) for the logo design.
 

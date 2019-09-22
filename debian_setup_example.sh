@@ -1,9 +1,7 @@
 sudo apt update
 sudo apt install python-pip libhunspell-dev python3-hunspell nginx postgresql
-wget https://repo.anaconda.com/archive/Anaconda3-5.2.0-Linux-x86_64.sh
+wget https://repo.anaconda.com/archive/Anaconda3-2019.07-Linux-x86_64.sh
 sudo bash Anaconda3-5.2.0-Linux-x86_64.sh
-# default options
-echo ". ~/anaconda3/etc/profile.d/conda.sh" >> ~/.bashrc
 source ~/.bashrc
 sudo ~/anaconda3/bin/conda update -n base conda
 conda create -n descrive
@@ -19,5 +17,8 @@ nltk.download('punkt')
 exit()
 git clone https://github.com/aliblong/descrive.git
 cd descrive
-sudo -u postgres psql < kijiji.py
+sudo -u postgres psql < db.sql
+sudo -u postgres psql kijiji < kijiji.sql
 cp .env_template .env
+sudo mkdir /var/log/gunicorn
+# to run (after setting up nginx): gunicorn web:app --timeout 10800 --graceful-timeout 10799 --error-logfile /var/log/gunicorn/output --capture-output --access-logfile /var/log/gunicorn/access -D
